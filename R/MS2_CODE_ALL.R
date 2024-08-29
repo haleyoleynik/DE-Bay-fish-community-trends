@@ -281,24 +281,11 @@ small.div <- ggplot(small.div.TS, aes(x=Date, y = small.shann)) +
 
 small.rich / small.div
 
-# Combine and plot 
-# rich.TS %>%
-#   left_join(div.TS, by = "Date") %>%
-#   left_join(small.rich.TS, by = "Date") %>%
-#   left_join(small.div.TS, by = "Date") %>%
-#   pivot_longer(cols = 2:5, names_to = "Measure", values_to = "Value") %>%
-#   mutate(Survey = case_when(
-#     Measure %in% c("richness", "shann") ~ "30-foot",
-#     Measure %in% c("small.richness","small.shann") ~ "16-foot")) %>%
-#   ggplot(aes(x=Date, y=Value, color = Survey)) +
-#   geom_line() + 
-#   geom_smooth() +
-#   facet_wrap(vars(Measure), scales = "free_y") +
-#   scale_color_manual(values=colorblind_palette) +
-#   theme_light()
-
-## FIGURE - richness and diversity trends -----------------------
+# FIGURE 1 - richness and diversity trends -----------------------
 (rich / div) | (small.rich / small.div)
+
+ggsave("Figures/FIGURE_1.png", 
+       dpi=300, height=7, width=10, units='in')
 
 ### Mann Kendall tests -------
 # 30 foot 
@@ -543,8 +530,11 @@ sm.div.region.plot <- sm.upper.div %>%
 
 sm.rich.region.plot / sm.div.region.plot
 
-## FIGURE - regional trends  -----
+# FIGURE 4 - regional trends  -----
 (p1 / p2) | (sm.rich.region.plot / sm.div.region.plot)
+
+ggsave("Figures/FIGURE_4.png", 
+       dpi=300, height=7, width=12, units='in')
 
 ### Rate of intro / departure ------------------------------------
 smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
@@ -598,7 +588,8 @@ sd(introduction.rate$n)  #2.382534
 mean(departure.rate$n) #2.5 (-2015)
 sd(departure.rate$n) #1.414214
 
-# Seasonal Env. Trends -----------
+# Seasonal Trends -----------
+## Env. Trends -----------
 # From SeasonalTemperatureChanges.R
 seasonal <- New.Data %>%
   mutate(season = case_when(
@@ -650,7 +641,12 @@ p4 <- seasonal %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
+# FIGURE 2 - env. trends ----------
+
 (p1 / p2) | (p3 / p4)
+
+ggsave("Figures/FIGURE_2.png", 
+       dpi=300, height=7, width=10, units='in')
 
 ### Calculate rate -----------------------
 # using regression line 
@@ -714,8 +710,8 @@ bfall$coefficients #0.01973277
 #fall bottom 
 0.01973277*52 #1.026104
 
-# Seasonal Richness Trends -----------
-## 30-foot survey -----------
+## Seasonal Richness Trends -----------
+### 30-foot survey -----------
 rich.seasonal <- New.Data %>%
   filter(Year %in% 1990:2019) %>%
   mutate(season = case_when(
@@ -742,7 +738,7 @@ big.richness.seasonal <- rich.seasonal %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
-## 16-foot survey -----------
+### 16-foot survey -----------
 smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
 
 small.rich.seasonal <- smalltrawl %>%
@@ -772,10 +768,10 @@ small.richness.seasonal <- small.rich.seasonal %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
-# FIGURE - seasonal richness -----------
+### FIGURE - seasonal richness -----------
 big.richness.seasonal / small.richness.seasonal
 
-# Seasonal Diversity ------------
+## Seasonal Diversity ------------
 ### 30-foot seasonal diversity ------------
 
 # Summer
@@ -993,8 +989,11 @@ small.div.s <- small.seasonal.div %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
-## FIGURE seasonal - rich & div -------------
+# FIGURE 3 - seasonal - rich & div -------------
 (big.richness.seasonal / big.div.s) | (small.richness.seasonal/ small.div.s)
+
+ggsave("Figures/FIGURE_3.png", 
+       dpi=300, height=7, width=12, units='in')
 
 # Species accumulation curve -------------------------------------
 # from MS2_species_accumulation.R 
@@ -1074,7 +1073,7 @@ slope.df <- slope %>%
 # write_csv(richness, "/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-richness.csv") 
 
 
-### FIGURE Sp. accum  ---------------------------------
+# FIGURE Sp. accum
 big.richness <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-richness.csv")
 big.slope <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-slope.csv")
 
@@ -1176,7 +1175,7 @@ quadratic = fit2$coefficient[3]*slope$i^2 + fit2$coefficient[2]*slope$i + fit2$c
 quadratic
 
 
-### FIGURE 16-foot sp. accum ------------------------------
+### FIGURE 16-foot sp. accum
 small.SA <- ggplot(richness) + 
   geom_point(aes(x=V1, y=V2, color = Year), size = 3) +
   labs(x = "Samples", y="Number of Species", tag = "b)") +
@@ -1195,10 +1194,10 @@ small.slope <- ggplot(slope) +
 
 small.SA / small.slope
 
-# FIGURE 5 ----------------------
+# FIGURE 5 - sp. accumulation ----------------------
 (big.SA.plot / big.slope.plot) | (small.SA / small.slope)
 
-ggsave("outputs/fishery_data/unid-catch.png", 
+ggsave("Figures/FIGURE_5.png", 
        dpi=300, height=7, width=10, units='in')
 
 # taken from Month_PresenceAbsence_Th.R
@@ -1338,16 +1337,15 @@ sm.oc <- ggplot(small.all, aes(fill=variable, y=value, x=reorder(CommonName,diff
                     labels=c("First Half", "Second Half"),
                     values = colorblind_palette)
 
-## FIGURE - both surveys ------
+# FIGURE 6 - occurences ------
 sm.oc | big.oc
 
+ggsave("Figures/FIGURE_6.png", 
+       dpi=300, height=7, width=10, units='in')
 
 # FishBase Metrics -------------------------
 # look at MS2_community_metrics and MS2_length_freq 
 # MS2_occurences
-
-# put these all into one big figure?? 
-
 New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
 # new fish info with everything 
 fishinfo.30 <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
@@ -1395,6 +1393,7 @@ p2 <- try %>%
 
 p1 | p2
 
+
 ### Feeding Habit ----------------------------------------------------------
 fish2 <- fish %>%
   group_by(Year, CommonName, Feeding.Habit2) %>%
@@ -1435,7 +1434,11 @@ ggplot(aes(x=Year, y = number, color = feeding.habit)) +
 
 f1 | f2
 
+# FIGURE 8 - env. and feeding habits -----------
 (p1 | p2) / (f1 | f2)
+
+ggsave("Figures/FIGURE_8.png", 
+       dpi=300, height=7, width=12, units='in')
 
 ### Trophic Level -----------------------------
 TL <- fish %>% 
@@ -1504,9 +1507,6 @@ big.mid.lat <- latitude %>%
   theme_light() +  
   theme(text = element_text(size=10)) 
 
-big.upper.lat / big.mid.lat / big.lower.lat
-(p2 / p3 / p1) | max.temp / mean.temp / min.temp
-
 ### Preferred Temperature  ----------------------------
 # weight by abundance? 
 temp <- fish %>% 
@@ -1572,43 +1572,12 @@ max.temp.big / mean.temp.big / min.temp.big
 
 (max.temp.big / mean.temp.big / min.temp.big) | (big.upper.lat / big.mid.lat / big.lower.lat)
 
+big.upper.lat / big.mid.lat / big.lower.lat
+(p2 / p3 / p1) | max.temp / mean.temp / min.temp
 
-### FIGURE -- all fishbase metrics  -----
-all <- temp %>%
-  left_join(TL, by = "Year") %>%
-  left_join(latitude, by = "Year") %>%
-  left_join(len, by = "Year") %>%
-  rename("Trophic Level" = "TL", 
-         "Mean Temp" = "temp", 
-         "Max Temp" = "maxtemp", 
-         "Min Temp" = "mintemp",
-         "Lower Latitude" = "lowerlat",
-         "Upper Latitutde" = "upperlat",
-         "Mid Latitude" = "midlat",
-         "Length" = "length") %>%
-  pivot_longer(cols = 2:9, names_to = "Metric", values_to = "Value") %>%
-  mutate(Group = case_when(
-    Metric %in% c("Mean Temp", "Max Temp","Min Temp") ~ "Temperature",
-    Metric %in% c("Trophic Level") ~ "Trophic Level",
-    Metric %in% c("Mid Latitude", "Upper Latitutde","Lower Latitude") ~ "Latitude",
-    Metric %in% c("Length") ~ "Length"
-  )) 
-
-# FIGURE 
-all %>%
-  ggplot(aes(x = Year, y = Value, color = Group)) +
-  geom_line() +
-  #geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
-  scale_color_manual(values = colorblind_palette) + 
-  theme_light() #+
-  #theme(strip.background.x = element_blank())
-
-# Length --------------------
+## Length --------------------
 ## From MS2_Length_Analysis.R
-
-## 30-foot survey ----------------------------------------------------------------
+## 30-foot survey ---------------
 # pull out species names 
 New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
 dat <- select(New.Data, SpeciesCode, CommonName, Group)
@@ -1726,6 +1695,39 @@ season.len %>%
   ylab("Mean Length") + 
   theme_classic() +  
   theme(text = element_text(size=15)) 
+
+# FIGURE -- all fishbase metrics  -----
+all <- temp %>%
+  left_join(TL, by = "Year") %>%
+  left_join(latitude, by = "Year") %>%
+  left_join(len, by = "Year") %>%
+  rename("Trophic Level" = "TL", 
+         "Mean Temp" = "temp", 
+         "Max Temp" = "maxtemp", 
+         "Min Temp" = "mintemp",
+         "Lower Latitude" = "lowerlat",
+         "Upper Latitutde" = "upperlat",
+         "Mid Latitude" = "midlat",
+         "Length" = "length") %>%
+  pivot_longer(cols = 2:9, names_to = "Metric", values_to = "Value") %>%
+  mutate(Group = case_when(
+    Metric %in% c("Mean Temp", "Max Temp","Min Temp") ~ "Temperature",
+    Metric %in% c("Trophic Level") ~ "Trophic Level",
+    Metric %in% c("Mid Latitude", "Upper Latitutde","Lower Latitude") ~ "Latitude",
+    Metric %in% c("Length") ~ "Length"
+  )) 
+
+# FIGURE 
+all %>%
+  ggplot(aes(x = Year, y = Value, color = Group)) +
+  geom_line() +
+  #geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
+  scale_color_manual(values = colorblind_palette) + 
+  theme_light() #+
+  #theme(strip.background.x = element_blank())
+
 
 # GAM -------------------------
 # written data !! read this and jump to time series plots
