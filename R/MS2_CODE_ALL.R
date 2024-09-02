@@ -1261,8 +1261,7 @@ sp.all <- sp.early %>%
 big.oc <- ggplot(sp.all, aes(fill=variable, y=value, x=reorder(CommonName,diff))) + 
   geom_bar(position="dodge", stat="identity") + 
   coord_flip() + 
-  xlab("Species") + 
-  ylab("Proportion of months") +
+  labs(x="Species",y="Proportion of Months", tag = "a)") +
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_fill_manual(name="",
@@ -1329,8 +1328,7 @@ small.all <- small.early %>%
 sm.oc <- ggplot(small.all, aes(fill=variable, y=value, x=reorder(CommonName,diff))) + 
   geom_bar(position="dodge", stat="identity") + 
   coord_flip() + 
-  xlab("Species") + 
-  ylab("Proportion of months") +
+  labs(x="Species",y="Proportion of months", tag = "b)") + 
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_fill_manual(name="",
@@ -1338,7 +1336,7 @@ sm.oc <- ggplot(small.all, aes(fill=variable, y=value, x=reorder(CommonName,diff
                     values = colorblind_palette)
 
 # FIGURE 6 - occurences ------
-sm.oc | big.oc
+big.oc | sm.oc
 
 ggsave("Figures/FIGURE_6.png", 
        dpi=300, height=7, width=10, units='in')
