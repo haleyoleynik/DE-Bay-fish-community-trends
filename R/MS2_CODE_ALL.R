@@ -1571,9 +1571,8 @@ min.temp.big <- fish %>%
 max.temp.big / mean.temp.big / min.temp.big
 
 (max.temp.big / mean.temp.big / min.temp.big) | (big.upper.lat / big.mid.lat / big.lower.lat)
-
-big.upper.lat / big.mid.lat / big.lower.lat
-(p2 / p3 / p1) | max.temp / mean.temp / min.temp
+#big.upper.lat / big.mid.lat / big.lower.lat
+#(p2 / p3 / p1) | max.temp / mean.temp / min.temp
 
 ## Length --------------------
 ## From MS2_Length_Analysis.R
@@ -1656,14 +1655,14 @@ ggplot(len, aes(x=Year, y = length)) +
   theme(text = element_text(size=15)) 
 
 ### By month --------------------------------------------
-len <- lengths %>% 
+month.len <- lengths %>% 
   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Year, Month) %>% 
   summarise(length = mean(length, na.rm=T)) 
 
-len$date <- as.Date(paste(len$Year, len$Month, "01", sep = "-"))
+month.len$date <- as.Date(paste(month.len$Year, month.len$Month, "01", sep = "-"))
 
-ggplot(len, aes(x=date, y = length)) +
+ggplot(month.len, aes(x=date, y = length)) +
   geom_line(group=1) + 
   #geom_point() + 
   ggtitle("30-foot survey") + 
@@ -1696,7 +1695,7 @@ season.len %>%
   theme_classic() +  
   theme(text = element_text(size=15)) 
 
-# FIGURE -- all fishbase metrics  -----
+# plot 
 all <- temp %>%
   left_join(TL, by = "Year") %>%
   left_join(latitude, by = "Year") %>%
@@ -1717,7 +1716,7 @@ all <- temp %>%
     Metric %in% c("Length") ~ "Length"
   )) 
 
-# FIGURE 
+# FIGURE 7 - fishbase metrics -------------
 all %>%
   ggplot(aes(x = Year, y = Value, color = Group)) +
   geom_line() +
@@ -1728,6 +1727,8 @@ all %>%
   theme_light() #+
   #theme(strip.background.x = element_blank())
 
+ggsave("Figures/FIGURE_7.png", 
+       dpi=300, height=7, width=14, units='in')
 
 # GAM -------------------------
 # written data !! read this and jump to time series plots
@@ -1736,35 +1737,13 @@ data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/ALL_GLM_DATA_v3
 data$Date <- as.Date(data$Date)
 fssi <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/Atlantic_FSSI_timeseries.csv")
 
-## Clean up data --------------
-# take out all missing data 
-original.data <- data
-data <- na.omit(data)
-data$FMP.num<- as.numeric(data$FMP)
-data$Date <- as.Date(data$Date)
-
-# clean up data pt. 2 - take out FMP amendments 
-data <- data %>% dplyr::select(Date, Month, Year, richness, all.trips.extrapolated, temp, DO)
-
+# combine 
 new.data <- fssi %>%
   dplyr::select(Date, FSSI = score) %>%
   right_join(data, by = "Date") %>%
   arrange(Date)
 
-na.data <- na.omit(new.data)
-
-## FIGURE - Plot timeseries and relationships ----------
-require(patchwork)
-
-colorblind_palette <- c(
-  "#E69F00",  # Orange
-  "#56B4E9",  # Sky Blue
-  "#009E73",  # Bluish Green
-  "#F0E442",  # Yellow
-  "#0072B2",  # Blue
-  "#D55E00",  # Vermilion
-  "#CC79A7"   # Reddish Purple
-)
+# FIGURE - Plot timeseries and relationships
 
 p1 <- ggplot(new.data, aes(Date,richness)) +
   geom_line() +
@@ -1821,14 +1800,25 @@ t4 <- ggplot(new.data, aes(all.trips.extrapolated, richness)) +
 (p1 | p2 | p3) / (p4 | p5 | plot_spacer())
 (t1 | t2) / (t3 | t4 )
 
+
+# FIGURE  9 - GAM ------ 
 (p1 ) /
   (p2 | t1) /
   (p3 | t2) /
   (p4 | t3) /
   (p5 | t4)
 
+ggsave("Figures/FIGURE_9.png", 
+       dpi=300, height=10, width=7, units='in')
 
 # omit nas 
+# na.data <- na.omit(new.data)
+data$FMP.num<- as.numeric(data$FMP)
+data$Date <- as.Date(data$Date)
+
+# clean up data pt. 2 - take out FMP amendments 
+data <- data %>% dplyr::select(Date, Month, Year, richness, all.trips.extrapolated, temp, DO)
+
 new.data %>% 
   dplyr::select(Date, FSSI) %>%
   na.omit %>%
