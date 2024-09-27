@@ -86,7 +86,6 @@ p3 <- ggplot(temp.TS, aes(x=Date, y = DO_sat)) +
 p1 / p2 / p3
 
 ### Temperature by month -------
-# do not use !!!! 
 temp <- New.Data %>%
   filter(Month > 2) %>%
   group_by(Year, Month) %>%
@@ -106,6 +105,64 @@ ggplot(temp, aes(x=Year, y=temp, color = Month)) +
   theme_light() +
   theme(text = element_text(size=30))
 
+### Model temperature through time (to determine % increase) --------
+model <- glm(temp ~ Year + Month, data = temp)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # 0.04357815 -- means increased 0.04 per year on average 
+
+# Calculate the total number of years
+n_years <- max(temp$Year) - min(temp$Year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(temp$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 23.05986% increase overall 
+
+### Model DO through time (to determine % increase) --------
+do <- New.Data %>%
+  filter(Year %in% c(1990:2019)) %>%
+  filter(Month %in% c(2:11)) %>%
+  group_by(Year, Month) %>%
+  summarise(DO = mean(BottomDO_sat, na.rm=T))
+
+model <- glm(DO ~ Year + Month, data = do)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # -0.1756533 -- means decreased 0.18 per year on average 
+coef_year
+
+# Calculate the total number of years
+n_years <- max(do$Year) - min(do$Year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(do$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 4.95337% decrease overall 
+
+
 ### Richness through time ------------------
 rich.TS <- New.Data %>%
   #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
@@ -118,7 +175,7 @@ rich.TS <- New.Data %>%
   group_by(Date) %>% 
   tally() %>%
   complete(Date = seq.Date(min(Date), max(Date), by="month")) %>%
-  rename(richness = n)
+  rename(richness = n) 
 
 rich <- ggplot(rich.TS, aes(x=Date, y = richness)) +
   geom_line(color = "#E69F00", alpha = 0.7) +
@@ -126,6 +183,39 @@ rich <- ggplot(rich.TS, aes(x=Date, y = richness)) +
   geom_hline(yintercept = mean(rich.TS$richness, na.rm=T), linetype = 'dashed') +
   labs(x = "", y="Species Richness", tag = "a)") +
   theme_light()
+
+### Model richness through time (to determine % increase) ----- 
+try <- rich.TS %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date))
+
+model <- glm(richness ~ year + month, data = try)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(try$year) - min(try$year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- 1990
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 56.73357% increase overall 
+
 
 ### Diversity through time -----------------------
 
@@ -162,6 +252,38 @@ div <- ggplot(div.TS, aes(x=Date, y = shann)) +
   theme_light() 
 
 rich / div
+
+### model diversity through time ---------
+try <- div.TS %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date))
+
+model <- glm(shann ~ year + month, data = try)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(try$year) - min(try$year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- 1990
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 11.73% increase overall 
 
 ### Rate of introduction / departure ------------------------------
 # filter by fish because too hard to tell when inverts started being monitored 
@@ -403,6 +525,39 @@ p2 <- bayregions2 %>%
                      labels = c("Lower Bay", "Mid Bay", "Upper Bay")) 
 
 p1 / p2
+
+### model regional trends through time ---------
+# swap out 'lowerbay.richness' and 'lowerbay.shann' to look at richness and diversity
+regional.glm <- bayregions2 %>%
+  filter(metric == "lowerbay.shann") %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date)) %>%
+  select(-c(metric,type))
+
+model <- glm(value ~ year + month, data = regional.glm)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.1881718 -- means increased XX per year on average 
+
+# Calculate the total number of years
+n_years <- max(regional.glm$year) - min(regional.glm$year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(regional.glm$year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 11.73% increase overall 
+
 
 ## 16-foot Regional Richness ------------
 small.regional.rich <- smalltrawl %>%
@@ -650,39 +805,47 @@ ggsave("Figures/FIGURE_2.png",
 
 ### Calculate rate -----------------------
 # using regression line 
+fall <- seasonal %>%
+  filter(season == "Fall")
+
+summer <- seasonal %>%
+  filter(season == "Summer")
+
+spring <- seasonal %>%
+  filter(season == "Spring")
 
 # run regressions 
 
 #summer
-ssum <- lm(surfacetemp.sum ~ Year, data = temp)
+ssum <- lm(surface.temp ~ Year, data = summer)
 summary(ssum) # yes
 
-bsum <- lm(bottomtemp.sum ~ Year, data = temp)
+bsum <- lm(bottom.temp ~ Year, data = summer)
 summary(bsum) #yes 
 
 #fall 
-bfall <- lm(bottomtemp.f ~ Year, data = temp)
+bfall <- lm(bottom.temp ~ Year, data = fall)
 summary(bfall) #no 
 
-sfall <- lm(surfacetemp.f ~ Year, data = temp)
+sfall <- lm(surface.temp ~ Year, data = fall)
 summary(sfall) #yes #no 
 
 #spring
-bspring <- lm(bottomtemp.s ~ Year, data = temp)
+bspring <- lm(bottom.temp ~ Year, data = spring)
 summary(bspring) #no 
 
-sspring <- lm(surfacetemp.s ~ Year, data = temp)
+sspring <- lm(surface.temp ~ Year, data = spring)
 summary(sspring) #no
 
 # slopes 
 ssum$coefficients #0.0427988
-bsum$coefficients #0.03899307
+bsum$coefficients #0.02935573
 
 sspring$coefficients #-0.009953095 
 bspring$coefficients #0.01875844 
 
 sfall$coefficients #0.06051394
-bfall$coefficients #0.01973277 
+bfall$coefficients #0.01625886 
 
 #slope = rise/run = temp / year 
 2019-1980
@@ -737,6 +900,36 @@ big.richness.seasonal <- rich.seasonal %>%
   labs(x="",y="Species Richness", tag = "a)") +
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+
+# using regression line 
+fall <- rich.seasonal %>%
+  filter(season == "Fall")
+
+summer <- rich.seasonal %>%
+  filter(season == "Summer")
+
+spring <- rich.seasonal %>%
+  filter(season == "Spring")
+
+# run regressions 
+
+#summer
+summer.rich <- lm(richness ~ Year, data = summer)
+summary(summer.rich) 
+
+#fall 
+fall.rich <- lm(richness ~ Year, data = fall)
+summary(fall.rich) 
+
+#spring
+spring.rich <- lm(richness ~ Year, data = spring)
+summary(spring.rich) 
+
+
+# slopes 
+summer.rich$coefficients #0.6137931
+fall.rich$coefficients #0.8160178
+spring.rich$coefficients #0.4669633
 
 ### 16-foot survey -----------
 smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
@@ -1341,7 +1534,7 @@ big.oc | sm.oc
 ggsave("Figures/FIGURE_6.png", 
        dpi=300, height=7, width=10, units='in')
 
-# FishBase Metrics -------------------------
+# Fish Base Metrics -------------------------
 # look at MS2_community_metrics and MS2_length_freq 
 # MS2_occurences
 New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
@@ -1735,10 +1928,15 @@ data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/ALL_GLM_DATA_v3
 data$Date <- as.Date(data$Date)
 fssi <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/Atlantic_FSSI_timeseries.csv")
 
+climate <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Climate Environment/Climate_Indices.csv")
+climate$date <- as.Date(climate$date)
+
+
 # combine 
 new.data <- fssi %>%
   dplyr::select(Date, FSSI = score) %>%
   right_join(data, by = "Date") %>%
+  right_join(climate, by = c('Date' = 'date')) %>%
   arrange(Date)
 
 # FIGURE - Plot timeseries and relationships
@@ -1806,136 +2004,134 @@ t4 <- ggplot(new.data, aes(all.trips.extrapolated, richness)) +
   (p4 | t3) /
   (p5 | t4)
 
-ggsave("Figures/FIGURE_9.png", 
-       dpi=300, height=10, width=7, units='in')
-
-# omit nas 
-# na.data <- na.omit(new.data)
-data$FMP.num<- as.numeric(data$FMP)
-data$Date <- as.Date(data$Date)
+#ggsave("Figures/FIGURE_9.png", 
+#       dpi=300, height=10, width=7, units='in')
 
 # clean up data pt. 2 - take out FMP amendments 
-data <- data %>% dplyr::select(Date, Month, Year, richness, all.trips.extrapolated, temp, DO)
+data <- new.data %>% 
+  dplyr::select(Date, Month, Year, richness, all.trips.extrapolated, temp, DO, FSSI)
 
-new.data %>% 
-  dplyr::select(Date, FSSI) %>%
-  na.omit %>%
-  ggplot(aes(Date,FSSI)) +
-  geom_line() +
-  theme_light()
-
-new.data %>% 
-  dplyr::select(Date, temp) %>%
-  na.omit %>%
-  ggplot(aes(Date,temp)) +
-  geom_line() +
-  theme_light()
-
-
-## Collinearity -----
+## Collinearity / Concurvity -----
 #define multiple linear regression model
-model <- lm(richness ~ Month + temp + FMP + all.trips.extrapolated + DO + River.DO, data=data)
+model <- lm(richness ~ Month + temp + FSSI + all.trips.extrapolated + DO , data=data)
 
 #calculate the VIF for each predictor variable in the model
-vif(model)
-
-#temp       FMP all.trips        DO 
-#1.873649  1.067691  1.766181  1.228738 
-
-# with River DO, VIF is higher, should use DO from survey 
-
-ggplot(data, aes(x=DO, y=River.DO)) +
-  geom_point() + 
-  geom_smooth(method ="lm")
-
-ggplot(data, aes(x=temp, y=River.DO)) +
-  geom_point() + 
-  geom_smooth(method ="lm")
-
-model <- lm(River.DO ~ temp, data = data)  
-summary(model)
+car::vif(model)
 
 # could include both DOs, river do as a metric of freshwater quality, and do as a measure of bay quality, but river DO is strongly correlated (R2=0.55) to temperature, high VIF scores when River DO is included. 
 
-## Model one by one ----------------------------------
-GAM.temp <- gam(richness ~ s(temp), family = poisson, data = na.data, na.action = "na.fail")
-GAM.DO <- gam(richness ~ s(DO), family = poisson, data = na.data, na.action = "na.fail")
-GAM.fssi<- gam(richness ~ s(FSSI), family = poisson, data = na.data, na.action = "na.fail")
-GAM.all.trips.ex <- gam(richness ~ s(all.trips.extrapolated), family = poisson, data = na.data, na.action = "na.fail")
+## GLM ----------------------------------
+# try GLM one by one 
+GLM.temp <- glm(richness ~ temp + Month + Year, family = poisson, data = new.data)
+GLM.DO <- glm(richness ~ DO + Month, family = poisson, data = new.data)
+GLM.fssi<- glm(richness ~ FSSI + Month, family = poisson, data = new.data)
+GLM.all.trips.ex <- glm(richness ~ all.trips.extrapolated + Month, family = poisson, data = new.data)
 
-# without omitting all NAs 
-GAM.temp <- gam(richness ~ s(temp,k=3), family = poisson, data = new.data)
-GAM.DO <- gam(richness ~ s(DO), family = poisson, data = new.data)
-GAM.fssi<- gam(richness ~ s(FSSI), family = poisson, data = new.data)
-GAM.all.trips.ex <- gam(richness ~ s(all.trips.extrapolated), family = poisson, data = new.data)
+summary(GLM.temp)
+summary(GLM.DO)
+summary(GLM.fssi)
+summary(GLM.all.trips.ex)
 
-#  edf = effective degrees of freedom. This value represents the complexity of the smooth. An edf of 1 is equivalent to a straight line. An edf of 2 is equivalent to a quadratic curve, and so on, with higher edfs describing more wiggly curves.
-# Ref.df and F columns are test statistics used in an ANOVA test to test overall significance of the smooth. 
+GLM <- glm(richness ~ temp + all.trips.extrapolated + DO + Month + Year, family = poisson, data = new.data)
+summary(GLM)
+glm_model <- glm(richness ~ temp + Year + factor(Month), data = new.data)
+summary(glm_model)
 
-# summary                              edf  Ref.df  Chi.sq p-value
-summary(GAM.temp) #              TEMP 3.69  4.655   38.36 1.08e-06 *** deviance explained = 56%
-summary(GAM.DO) #                 DO  2.878  3.639  18.12  0.0011 ** 27.1%
-summary(GAM.all.trips.ex) #      EFFORT  4.704  5.75   19.81  0.00334 ** 18.8%
-summary(GAM.fssi) #                   5.147  6.235  17.81 0.00754 **  <2e-16 *** 11.2%
-
-#     RIVER DO  4.143  5.179  51.9   <2e-16 ***
-#     FMP   6.799  7.903  65.69  <2e-16 ***
-
-#A good way to interpret significance for smooth terms in GAMs is this: a significant smooth term is one where you can not draw a horizontal line through the 95% confidence interval.
-
-plot(GAM.temp)
-plot(GAM.fssi)
-
-plot(GAM.temp, rug = TRUE, residuals = TRUE,
-     pch = 1, cex = 1, shade =T)
-
-coef(GAM.temp)
-
-# visualize the relationships 
-ggplot(new.data, aes(x=temp, y=richness)) +
-  geom_point() +
-  geom_smooth(method = "lm") 
-
-temp.lm <- lm(richness~temp, data = new.data)
-summary(temp.lm)
-
-ggplot(new.data, aes(x=FSSI, y=richness)) +
-  geom_point() +
-  geom_smooth(method = "lm") 
-
-ggplot()
-
-plot(GAM.temp)
-plot(GAM.DO)
-plot(GAM.all.trips.ex)
-#plot(GAM.FMP)
-plot(GAM.fssi)
-
-summary(GAM1)
-plot(GAM1)
-
-summary(GAM2)
-plot(GAM2)
-
-## Three different models --------------
-# look at shape of month 
-data %>%
-  group_by(Month) %>%
-  summarise(temp = mean(temp,na.rm=T)) %>%
-  ggplot(aes(x=Month, y=temp)) +
-  geom_line()
-
+## GAM --------------
 # plot richness over time 
 data %>%
   ggplot(aes(x=Date, y=richness)) +
   geom_point() +
   geom_smooth()
 
-# Method 1 *********************************************************
-# Model month cubic cyclic spline
-data <- na.omit(data)
+# just look at temp data 
+temp <- new.data %>%
+  select(c(richness,temp,Year,Month)) %>%
+  na.omit() %>%
+  filter(Year > 1989)
 
-GAM1 <- gam(richness ~ s(Year, bs = "cr", k = 33) + s(Month, bs = "cc", k = 10) + s(temp) + s(FMP) + s(all.trips.extrapolated) + s(DO) , family = poisson, data = data, na.action = "na.fail")
+length(unique(temp$Month))
+length(unique(temp$Year))
+table(temp$Month)
+
+# shape of month
+temp %>%
+  group_by(Month) %>%
+  summarise(temp = mean(temp,na.rm=T)) %>%
+  ggplot(aes(x=Month, y=temp)) +
+  geom_line()
+
+# shape of richness
+temp %>%
+  group_by(Month) %>%
+  summarise(richness = mean(richness,na.rm=T)) %>%
+  ggplot(aes(x=Month, y=richness)) +
+  geom_line()
+
+## TEMP sensitivities ---------------------- 
+GAM.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
+summary(GAM.temp) # deviance explained = 46.1
+coef(GAM.temp)
+plot(GAM.temp)
+
+GAM.temp2 <- gam(richness ~ s(temp) + s(Year) + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
+summary(GAM.temp2) # 62.9
+coef(GAM.temp2)
+plot(GAM.temp2)
+
+GAM.temp2 <- gam(richness ~ s(temp) + Year + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
+summary(GAM.temp2) # 52
+coef(GAM.temp2)
+plot(GAM.temp2)
+
+GAM.temp2 <- gam(richness ~ temp + s(Year) + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
+summary(GAM.temp2) # 57.5
+coef(GAM.temp2)
+plot(GAM.temp2)
+
+# all covariates ****** no significance 
+
+GAM1.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.temp) # deviance explained = 44.3
+coef(GAM1.temp)
+plot(GAM1.temp)
+
+GAM1.trips <- gam(richness ~ all.trips.extrapolated + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.trips) # deviance explained = 41.6 -- not significant! 
+
+GAM1.DO <- gam(richness ~ DO + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.DO) # deviance explained = 43.7 -- not significant! 
+
+GAM1.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.temp)
+
+# model all together 
+GAM1.all <- gam(richness ~ temp + all.trips.extrapolated + DO + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.all)
+
+# sensitivity -- temp & year as a smooth term
+GAM2.temp <- gam(richness ~ s(temp) + s(Year) + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM2.temp) 
+coef(GAM2.temp)
+plot(GAM2.temp)
+
+# R-sq.(adj) =  0.354   Deviance explained = 49.2%
+# AIC - 241.1226
+
+
+# without FSSI 
+data.2 <- new.data %>% 
+  select(-FSSI) %>%
+  na.omit()
+
+GAM2 <- gam(richness ~ s(Year, bs = "cr", k = 27) + s(Month, bs = "cc", k = 10) + s(temp) + s(all.trips.extrapolated) + s(DO), family = poisson, data = data.2, na.action = "na.fail")
+
+summary(GAM2)
+
+# check individual 
+GAM.DO <- gam(richness ~ s(Year, bs = "cr", k = 27) + s(Month, bs = "cc", k = 10) + s(temp), family = poisson, data = data.2, na.action = "na.fail")
+
+summary(GAM.DO)
 
 # try DO, FMP, rec effort as a linear term 
 GAM1.2 <- gam(richness ~ s(Year, bs = "cr", k = 33) + s(Month, bs = "cc", k = 10) + s(temp) + FMP + all.trips.extrapolated + DO , family = poisson, data = data, na.action = "na.fail")
@@ -2054,19 +2250,4 @@ GAM1.2 <- gam(richness ~ s(Year, bs = "cr", k = 34) + s(Month, bs = "cc", k = 10
 
 summary(GAM1.2)
 AIC(GAM1.2)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
