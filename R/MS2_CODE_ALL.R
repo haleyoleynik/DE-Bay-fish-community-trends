@@ -1539,16 +1539,24 @@ ggsave("Figures/FIGURE_6.png",
 # MS2_occurences
 New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
 # new fish info with everything 
-fishinfo.30 <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
+fishinfo.30 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
+fishinfo.16 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info v2.csv")
 
+# big trawl 
 fish <- New.Data %>% 
   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Trawl, Year, Month, CommonName) %>%
-  summarise(number = sum(CPUE, na.rm=T))
+  summarise(number = sum(CPUE, na.rm=T)) %>%
+  left_join(fishinfo.30, by = "CommonName")
 
-fish <- left_join(fish, fishinfo.30, by = "CommonName")
+# small trawl 
+small.fish <- smalltrawl %>% 
+  group_by(Trawl, Year4, Month, Common.name) %>%
+  summarise(number = sum(CPUE, na.rm=T)) %>%
+  left_join(fishinfo.16, by = c("Common.name" = "CommonName")) %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish")
 
-### Environment -------------------------------------------------------------
+### 30-foot Environment -------------------------------------------------------------
 try <- fish %>%
   group_by(Year, CommonName, Environment) %>%
   summarise(number = sum(number, na.rm=T)) %>%
@@ -1584,8 +1592,46 @@ p2 <- try %>%
 
 p1 | p2
 
+### 16-foot Environment -------------------------------------------------------------
+try <- small.fish %>%
+  group_by(Year4, Common.name, Environment) %>%
+  summarise(number = sum(number, na.rm=T)) %>%
+  ungroup() %>%
+  filter(!is.na(Environment)) %>%
+  filter(Environment %in% c("demersal", "pelagic")) %>%
+  group_by(Year4, Environment) %>%
+  summarise(number = sum(number,na.rm=T)) %>%
+  pivot_wider(values_from = number, names_from = Environment) %>%
+  mutate(across(everything(), ~ replace_na(., 0))) %>%
+  rowwise() %>%
+  mutate(across(demersal:pelagic, ~ . / sum(c_across(demersal:pelagic), na.rm = TRUE))) %>%
+  ungroup() %>%
+  pivot_longer(cols = 2:3, values_to = "number", names_to = "Environment")
 
-### Feeding Habit ----------------------------------------------------------
+# stacked bar 
+p1 <- ggplot(data = try, aes(x = Year4, y = number, fill = factor(Environment, levels=c("demersal", "pelagic")))) + 
+  geom_bar(stat = 'identity') + 
+  ylab("Relative CPUE") +
+  guides(fill=guide_legend(title="Environment")) +
+  scale_fill_manual(values=colorblind_palette,name = "Environment", labels = c("Demersal", "Pelagic")) +
+  theme_light() +
+  theme(text = element_text(size=10))
+
+p2 <- try %>%
+  ggplot(aes(x=Year4, y = number, color = factor(Environment, levels=c("demersal", "pelagic")))) +
+  geom_line() +
+  geom_smooth(method = "lm") +
+  xlab("Year") +
+  ylab("Relative CPUE") +
+  facet_wrap(vars(Environment),nrow=2, scales="free_y") +
+  scale_color_manual(values = colorblind_palette, name = "Environment", labels = c("Demersal", "Pelagic")) +
+  theme_light() +
+  theme(text = element_text(size=10), strip.background = element_blank())
+
+p1 | p2
+
+
+### 30-foot Feeding Habit ----------------------------------------------------------
 fish2 <- fish %>%
   group_by(Year, CommonName, Feeding.Habit2) %>%
   summarise(number = sum(number, na.rm=T)) %>%
@@ -1625,10 +1671,51 @@ ggplot(aes(x=Year, y = number, color = feeding.habit)) +
 
 f1 | f2
 
-# FIGURE 8 - env. and feeding habits -----------
+### 16-foot Feeding Habit ----------------------------------------------------------
+fish2 <- small.fish %>%
+  group_by(Year4, Common.name, Feeding.Habit2) %>%
+  summarise(number = sum(number, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(Feeding.Habit2 = na_if(Feeding.Habit2, "")) %>%
+  filter(!is.na(Feeding.Habit2)) %>%
+  filter(Feeding.Habit2 %in% c("hunting macrofauna (predator)", "variable")) %>%
+  group_by(Year4, Feeding.Habit2) %>%
+  summarise(number = sum(number,na.rm=T)) %>%
+  pivot_wider(values_from = number, names_from = Feeding.Habit2) %>%
+  mutate(across(everything(), ~ replace_na(., 0))) %>%
+  rowwise() %>%
+  mutate(across(`hunting macrofauna (predator)`:variable, ~ . / sum(c_across(`hunting macrofauna (predator)`:variable))))  %>%
+  ungroup() %>%
+  pivot_longer(cols = `hunting macrofauna (predator)`:variable, values_to = "number", names_to = "feeding.habit")
+
+# stacked bar 
+f1 <- fish2 %>%
+  ggplot(aes(x = Year4, y = number, fill = factor(feeding.habit, levels=c("hunting macrofauna (predator)", "variable")))) + 
+  geom_bar(stat = 'identity') + 
+  ylab("Relative CPUE") +
+  scale_fill_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable")) +
+  theme_light() +
+  theme(text = element_text(size=10))
+
+f2 <- fish2 %>%
+  ggplot(aes(x=Year4, y = number, color = feeding.habit)) +
+  geom_line() +
+  geom_smooth(method = "lm") +
+  xlab("Year") +
+  ylab("Relative CPUE") +
+  facet_wrap(vars(feeding.habit),nrow=2, scales="free_y") +
+  scale_color_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable")) +
+  theme_light() +
+  theme(text = element_text(size=10), strip.background = element_blank())
+
+f1 | f2
+
+# FIGURE 8 & 8b - env. and feeding habits -----------
 (p1 | p2) / (f1 | f2)
 
 ggsave("Figures/FIGURE_8.png", 
+       dpi=300, height=7, width=12, units='in')
+ggsave("Figures/FIGURE_8b.png", 
        dpi=300, height=7, width=12, units='in')
 
 ### Trophic Level -----------------------------
@@ -1966,6 +2053,12 @@ p5 <- ggplot(new.data, aes(Date,all.trips.extrapolated)) +
   labs(x = "Year", y = "Trips") +
   theme_light()
 
+p6 <- ggplot(new.data, aes(Date,River.DO)) +
+  geom_line(col = "#D55E00") +
+  labs(x = "Year", y = "River Dissolved Oxygen") +
+  theme_light()
+
+
 (p1 | p2 | p3) / (p4 | p5 | plot_spacer())
 
 # relationships 
@@ -1993,6 +2086,12 @@ t4 <- ggplot(new.data, aes(all.trips.extrapolated, richness)) +
   labs(x = "Trips", y = "Richness") +
   theme_light()
 
+t5 <- ggplot(new.data, aes(River.DO, richness)) +
+  geom_point(col = "#D55E00") +
+  geom_smooth(method = "lm", col = "#D55E00",se=F) +
+  labs(x = "River Dissolved Oxygen", y = "Richness") +
+  theme_light()
+
 (p1 | p2 | p3) / (p4 | p5 | plot_spacer())
 (t1 | t2) / (t3 | t4 )
 
@@ -2002,10 +2101,11 @@ t4 <- ggplot(new.data, aes(all.trips.extrapolated, richness)) +
   (p2 | t1) /
   (p3 | t2) /
   (p4 | t3) /
-  (p5 | t4)
+  (p5 | t4) /
+  (p6 | t5)
 
-#ggsave("Figures/FIGURE_9.png", 
-#       dpi=300, height=10, width=7, units='in')
+ggsave("Figures/FIGURE_9.png", 
+       dpi=300, height=12, width=7, units='in')
 
 # clean up data pt. 2 - take out FMP amendments 
 data <- new.data %>% 
@@ -2101,6 +2201,12 @@ summary(GAM1.trips) # deviance explained = 41.6 -- not significant!
 
 GAM1.DO <- gam(richness ~ DO + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
 summary(GAM1.DO) # deviance explained = 43.7 -- not significant! 
+
+ggplot(new.data, aes(x=Date, y=River.DO)) +
+  geom_line()
+
+GAM1.RiverDO <- gam(richness ~ River.DO + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
+summary(GAM1.RiverDO) # deviance explained = 43.7 -- not significant! 
 
 GAM1.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
 summary(GAM1.temp)
@@ -2250,4 +2356,13 @@ GAM1.2 <- gam(richness ~ s(Year, bs = "cr", k = 34) + s(Month, bs = "cc", k = 10
 
 summary(GAM1.2)
 AIC(GAM1.2)
+
+# Species Turnover ----------------------
+# https://search.r-project.org/CRAN/refmans/codyn/html/turnover.html
+
+
+
+
+
+
 
