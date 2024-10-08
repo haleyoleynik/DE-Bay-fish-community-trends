@@ -1923,14 +1923,15 @@ ggplot(len3, aes(x = Year, y = mean_length)) +
 #   theme(text = element_text(size=15)) 
 
 ### 16-foot Trophic Level -----------------------------
-TL <- small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+small.TL <- small.fish %>% 
+  rename(Year = Year4, CommonName = Common.name) %>% 
+  group_by(Year, CommonName) %>% 
   summarise(TL = mean(Trophic.Level, na.rm=T)) %>% 
   ungroup() %>%
-  group_by(Year4) %>% 
+  group_by(Year) %>% 
   summarise(TL = mean(TL, na.rm=T)) 
 
-smallTL <- ggplot(TL, aes(x=Year4, y=TL)) +
+smallTL <- ggplot(TL, aes(x=Year, y=TL)) +
   geom_line() + 
   geom_point() + 
   geom_smooth(method="gam") +
@@ -1941,20 +1942,21 @@ smallTL <- ggplot(TL, aes(x=Year4, y=TL)) +
   theme(text = element_text(size=10))
 
 ### 16-foot Latitude ----------------------------------------
-latitude <-  small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+small.latitude <-  small.fish %>% 
+  rename(Year = Year4, CommonName = Common.name) %>% 
+  group_by(Year, CommonName) %>% 
   summarise(upperlat= mean(upperlat, na.rm=T),
             lowerlat= mean(lowerlat, na.rm=T))  %>%
   mutate(midlat = upperlat - ((upperlat-lowerlat)/2)) %>%
   ungroup() %>%
-  group_by(Year4) %>% 
+  group_by(Year) %>% 
   summarise(lowerlat = mean(lowerlat,na.rm=T),
             midlat = mean(midlat,na.rm=T),
             upperlat = mean(upperlat,na.rm=T))
 
 #lower lattitude is getting further south
 small.lower.lat <- latitude %>%
-  ggplot(aes(x=Year4, y = lowerlat)) +
+  ggplot(aes(x=Year, y = lowerlat)) +
   geom_line() + 
   geom_point() + 
   geom_smooth(method = "lm") +
@@ -1986,20 +1988,21 @@ small.mid.lat <- latitude %>%
 
 ### 16-foot Preferred Temperature  ----------------------------
 # weight by abundance? 
-temp <- small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+small.temp <- small.fish %>% 
+  rename(Year = Year4, CommonName = Common.name) %>% 
+  group_by(Year, CommonName) %>% 
   summarise(temp = mean(Temp.mean, na.rm=T),
             maxtemp = mean(Temp.max, na.rm=T),
             mintemp = mean(Temp.min, na.rm=T)) %>%
   ungroup() %>%
-  group_by(Year4) %>% 
+  group_by(Year) %>% 
   summarise(temp = mean(temp, na.rm=T),
             maxtemp = mean(maxtemp, na.rm=T),
             mintemp = mean(mintemp, na.rm=T))
 
 # mean temp  
 mean.temp.small <- small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+  group_by(Year, CommonName) %>% 
   summarise(temp = mean(Temp.mean, na.rm=T)) %>%
   ungroup() %>%
   group_by(Year4) %>% 
@@ -2015,7 +2018,7 @@ mean.temp.small <- small.fish %>%
 
 # max temp 
 max.temp.small <- small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+  group_by(Year4, CommonName) %>% 
   summarise(maxtemp = mean(Temp.max, na.rm=T)) %>% 
   ungroup() %>%
   group_by(Year4) %>% 
@@ -2032,7 +2035,7 @@ max.temp.small <- small.fish %>%
 
 # min temp 
 min.temp.small <- small.fish %>% 
-  group_by(Year4, Common.name) %>% 
+  group_by(Year4, CommonName) %>% 
   summarise(mintemp = mean(Temp.min, na.rm=T))  %>%
   ungroup() %>%
   group_by(Year4) %>% 
@@ -2074,11 +2077,11 @@ len2 <- lengths %>%
   group_by(Year, SpecCode) %>% 
   summarise(Length = weighted.mean(Length, freq, na.rm=T))
 
-len <- len2 %>% 
+small.len <- len2 %>% 
   group_by(Year) %>% 
   summarise(Length = mean(Length, na.rm=T)) 
 
-ggplot(len, aes(x=Year, y = Length)) +
+ggplot(small.len, aes(x=Year, y = Length)) +
   geom_line(group=1) + 
   geom_point() + 
   geom_smooth(method="loess") +
@@ -2088,10 +2091,44 @@ ggplot(len, aes(x=Year, y = Length)) +
 
 # FIGURE 7 - fishbase metrics -------------
 # plot 
+small.all <- small.temp %>%
+  left_join(small.TL, by = "Year") %>%
+  left_join(small.latitude, by = "Year") %>%
+  left_join(small.len, by = "Year") %>%
+  rename("Trophic Level" = "TL", 
+         "Mean Temp" = "temp", 
+         "Max Temp" = "maxtemp", 
+         "Min Temp" = "mintemp",
+         "Lower Latitude" = "lowerlat",
+         "Upper Latitutde" = "upperlat",
+         "Mid Latitude" = "midlat") %>%
+  pivot_longer(cols = 2:9, names_to = "Metric", values_to = "Value") %>%
+  mutate(Group = case_when(
+    Metric %in% c("Mean Temp", "Max Temp","Min Temp") ~ "Temperature",
+    Metric %in% c("Trophic Level") ~ "Trophic Level",
+    Metric %in% c("Mid Latitude", "Upper Latitutde","Lower Latitude") ~ "Latitude",
+    Metric %in% c("Length") ~ "Length"
+  )) 
+
+small.all %>%
+  ggplot(aes(x = Year, y = Value, color = Group)) +
+  geom_line() +
+  #geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
+  scale_color_manual(values = colorblind_palette) + 
+  theme_light() #+
+  #theme(strip.background.x = element_blank())
+
+ggsave("Figures/FIGURE_7b.png", 
+       dpi=300, height=7, width=14, units='in')
+
+# FIGURE 7b - fishbase metrics -------------
+# plot 
 all <- temp %>%
-  left_join(TL, by = "Year") %>%
-  left_join(latitude, by = "Year") %>%
-  left_join(len, by = "Year") %>%
+  left_join(smallTL, by = "Year4") %>%
+  left_join(latitude, by = "Year4") %>%
+  left_join(len, by = c("Year" = "Year4")) %>%
   rename("Trophic Level" = "TL", 
          "Mean Temp" = "temp", 
          "Max Temp" = "maxtemp", 
@@ -2116,12 +2153,10 @@ all %>%
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
   theme_light() #+
-  #theme(strip.background.x = element_blank())
+#theme(strip.background.x = element_blank())
 
 ggsave("Figures/FIGURE_7.png", 
        dpi=300, height=7, width=14, units='in')
-
-
 
 # GAM -------------------------
 # written data !! read this and jump to time series plots
