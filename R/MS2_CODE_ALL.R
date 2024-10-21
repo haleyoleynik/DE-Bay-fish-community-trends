@@ -164,7 +164,7 @@ percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_t
 percent_increase_overall # 4.95337% decrease overall 
 
 
-### Richness through time ------------------
+### ALL Richness through time ------------------
 rich.TS <- New.Data %>%
   #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year, SpeciesCode) %>%
@@ -217,8 +217,61 @@ percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_t
 
 percent_increase_overall # 56.73357% increase overall 
 
+### FISH Richness through time ------------------
+fish.rich.TS <- New.Data %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
+  group_by(Month, Year, SpeciesCode) %>%
+  summarise(number=sum(CPUE,na.rm=TRUE)) %>%
+  #filter(Year > 1989) %>%
+  mutate(Date = as.Date(paste(Year, Month, "1", sep="-"))) %>%
+  ungroup() %>%
+  select(-c(Month,Year)) %>%
+  group_by(Date) %>% 
+  tally() %>%
+  complete(Date = seq.Date(min(Date), max(Date), by="month")) %>%
+  rename(richness = n) 
 
-### Diversity through time -----------------------
+fish.rich <- ggplot(fish.rich.TS, aes(x=Date, y = richness)) +
+  geom_line(color = "#E69F00", alpha = 0.7) +
+  geom_smooth(method = "lm", se = T, size = 1, col = "#E69F00") + 
+  geom_hline(yintercept = mean(fish.rich.TS$richness, na.rm=T), linetype = 'dashed') +
+  labs(x = "", y="Species Richness", tag = "a)") +
+  theme_light()
+
+### Model richness through time (to determine % increase) ----- 
+try <- fish.rich.TS %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date))
+
+model <- glm(richness ~ year + month, data = try)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(try$year) - min(try$year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- 1966
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 50.96816% increase overall 
+
+
+### ALL Diversity through time -----------------------
 
 div.TS <- New.Data %>%
   #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
@@ -286,6 +339,74 @@ percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_t
 
 percent_increase_overall # 11.73% increase overall 
 
+### FISH Diversity through time -----------------------
+
+fish.div.TS <- New.Data %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
+  group_by(Month, Year, SpeciesCode) %>%
+  summarise(Number=sum(CPUE,na.rm=TRUE)) %>%
+  ungroup() %>%
+  #filter(Year %in% 1990:2019) %>%
+  mutate(Month.Year = paste(Year, Month, "1", sep="-"),
+         Date = as.Date(Month.Year)) %>%
+  select(-c(Month.Year,Year,Month)) %>% 
+  pivot_wider(names_from = SpeciesCode, values_from = Number) %>%
+  tibble::column_to_rownames('Date') %>%
+  mutate(across(everything(), ~ replace_na(., 0)))
+
+#Shannon-Wiener Function 
+shann <- diversity(fish.div.TS, index="shannon")
+shann <- as.data.frame(shann)
+shann$Date = row.names(shann)
+
+#join to make a diversity table, fill in missing date values with NA 
+fish.div.TS <- shann %>%
+  #left_join(simp, by = "Date") %>%
+  mutate(Date = as.Date(Date)) %>%
+  complete(Date = seq.Date(min(Date), max(Date), by="month"))
+
+# plot 
+fish.div <- ggplot(fish.div.TS, aes(x=Date, y = shann)) +
+  geom_line(color = "#E69F00", alpha = 0.7) +
+  geom_smooth(method = "lm", se = T, size = 1, col = "#E69F00") + 
+  geom_hline(yintercept = mean(fish.div.TS$shann, na.rm=T), linetype = 'dashed') +
+  labs(x="Year",y="Species Diversity") +
+  theme_light() 
+
+fish.rich / fish.div
+
+### model diversity through time ---------
+try <- fish.div.TS %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date))
+
+model <- glm(shann ~ year + month, data = try)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(try$year) - min(try$year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- 1966
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 8.195311% increase overall
+
 ### Rate of introduction / departure ------------------------------
 # filter by fish because too hard to tell when inverts started being monitored 
 heatmap <- New.Data %>%
@@ -344,6 +465,10 @@ sd(departure.rate$n) #0.8297022
 
 ## 16-foot survey--------------------------------------
 smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
+groups <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SpeciesGroups2.csv")
+
+smalltrawl <- smalltrawl %>%
+  left_join(groups, by = c("Common.name" = "CommonName"))
 
 ### Diversity through time --------------------------------
 small.div.TS <- smalltrawl %>%
@@ -2089,7 +2214,7 @@ ggplot(small.len, aes(x=Year, y = Length)) +
   theme_classic() +  
   theme(text = element_text(size=15)) 
 
-# FIGURE 7 - fishbase metrics -------------
+# FIGURE 7 - 30-foot fishbase metrics -------------
 # plot 
 small.all <- small.temp %>%
   left_join(small.TL, by = "Year") %>%
@@ -2123,7 +2248,7 @@ small.all %>%
 ggsave("Figures/FIGURE_7b.png", 
        dpi=300, height=7, width=14, units='in')
 
-# FIGURE 7b - fishbase metrics -------------
+# FIGURE 7b - 16-foot fishbase metrics -------------
 # plot 
 all <- temp %>%
   left_join(smallTL, by = "Year4") %>%
