@@ -30,7 +30,12 @@ colorblind_palette <- c(
   "#CC79A7"   # Reddish Purple
 )
 # Read Data ---------
+# small trawl 
 smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
+groups <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SpeciesGroups2.csv")
+
+smalltrawl <- smalltrawl %>%
+  left_join(groups, by = c("Common.name" = "CommonName"))
 
 New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
 New.Data$BottomDO_sat <- DO.unit.convert(New.Data$BottomDO, DO.units.in = "mg/L", DO.units.out = "pct", bar.units.in = "atm", bar.press = 1.013253, temp.C = New.Data$BottomTemp, salinity = New.Data$BottomSal, salinity.units = "pp.thou")
@@ -38,6 +43,10 @@ New.Data$BottomDO_sat <- DO.unit.convert(New.Data$BottomDO, DO.units.in = "mg/L"
 New.Data$SurfaceDO_sat <- DO.unit.convert(New.Data$SurfaceDO, DO.units.in = "mg/L", DO.units.out = "pct", bar.units.in = "atm", bar.press = 1.013253, temp.C = New.Data$SurfaceTemp, salinity = New.Data$SurfaceSal, salinity.units = "pp.thou")
 
 bayregions <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Map Stations/Bay_Regions.csv")
+
+# new fish info with everything 
+fishinfo.30 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
+fishinfo.16 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info v2.csv")
 
 # Trends -----------
 ## 30-foot survey -------------
@@ -166,7 +175,6 @@ percent_increase_overall # 4.95337% decrease overall
 
 ### ALL Richness through time ------------------
 rich.TS <- New.Data %>%
-  #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year, SpeciesCode) %>%
   summarise(number=sum(CPUE,na.rm=TRUE)) %>%
   filter(Year > 1989) %>%
@@ -222,7 +230,6 @@ fish.rich.TS <- New.Data %>%
   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year, SpeciesCode) %>%
   summarise(number=sum(CPUE,na.rm=TRUE)) %>%
-  #filter(Year > 1989) %>%
   mutate(Date = as.Date(paste(Year, Month, "1", sep="-"))) %>%
   ungroup() %>%
   select(-c(Month,Year)) %>%
@@ -274,7 +281,6 @@ percent_increase_overall # 50.96816% increase overall
 ### ALL Diversity through time -----------------------
 
 div.TS <- New.Data %>%
-  #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year, SpeciesCode) %>%
   summarise(Number=sum(CPUE,na.rm=TRUE)) %>%
   ungroup() %>%
@@ -346,7 +352,6 @@ fish.div.TS <- New.Data %>%
   group_by(Month, Year, SpeciesCode) %>%
   summarise(Number=sum(CPUE,na.rm=TRUE)) %>%
   ungroup() %>%
-  #filter(Year %in% 1990:2019) %>%
   mutate(Month.Year = paste(Year, Month, "1", sep="-"),
          Date = as.Date(Month.Year)) %>%
   select(-c(Month.Year,Year,Month)) %>% 
@@ -464,13 +469,8 @@ mean(departure.rate$n) #1.583333 (-2 yrs) , 1.8
 sd(departure.rate$n) #0.8297022
 
 ## 16-foot survey--------------------------------------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-groups <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SpeciesGroups2.csv")
 
-smalltrawl <- smalltrawl %>%
-  left_join(groups, by = c("Common.name" = "CommonName"))
-
-### Diversity through time --------------------------------
+### ALL Diversity through time --------------------------------
 small.div.TS <- smalltrawl %>%
   #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year4, SpecCode) %>%
@@ -497,7 +497,34 @@ small.div.TS <- shann %>%
   rename(small.shann = shann) %>%
   complete(Date = seq.Date(min(Date), max(Date), by="month"))
 
-### Richness through time----------------------------------------------
+### FISH Diversity through time --------------------------------
+fish.small.div.TS <- smalltrawl %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
+  group_by(Month, Year4, SpecCode) %>%
+  summarise(Number=sum(CPUE,na.rm=TRUE)) %>%
+  ungroup() %>%
+  #filter(Year4 %in% 1990:2019) %>%
+  filter(!is.na(SpecCode)) %>%
+  mutate(Month.Year = paste(Year4, Month, "1", sep="-"),
+         Date = as.Date(Month.Year)) %>%
+  select(-c(Month.Year,Year4,Month)) %>% 
+  pivot_wider(names_from = SpecCode, values_from = Number) %>%
+  tibble::column_to_rownames('Date') %>%
+  mutate(across(everything(), ~ replace_na(., 0)))
+
+#Shannon-Wiener Function 
+shann <- diversity(fish.small.div.TS, index="shannon")
+shann <- as.data.frame(shann)
+shann$Date = row.names(shann)
+
+#join to make a diversity table
+fish.small.div.TS <- shann %>%
+  #left_join(simp, by = "Date") %>%
+  mutate(Date = as.Date(Date)) %>%
+  rename(small.shann = shann) %>%
+  complete(Date = seq.Date(min(Date), max(Date), by="month"))
+
+### ALL Richness through time----------------------------------------------
 small.rich.TS <- smalltrawl %>%
   #filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
   group_by(Month, Year4, SpecCode) %>%
@@ -512,7 +539,22 @@ small.rich.TS <- smalltrawl %>%
   rename(small.richness = n) %>%
   complete(Date = seq.Date(min(Date), max(Date), by="month")) # fill in missing dates
 
-# plot 
+### FISH Richness through time----------------------------------------------
+fish.small.rich.TS <- smalltrawl %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
+  group_by(Month, Year4, SpecCode) %>%
+  summarise(number=sum(CPUE,na.rm=TRUE)) %>%
+  ungroup() %>%
+  #filter(Year4 %in% 1990:2019) %>%
+  filter(!is.na(SpecCode)) %>%
+  mutate(Date = as.Date(paste(Year4, Month, "1", sep="-"))) %>%
+  select(-c(Month,Year4)) %>%
+  group_by(Date) %>% 
+  tally() %>%
+  rename(small.richness = n) %>%
+  complete(Date = seq.Date(min(Date), max(Date), by="month")) # fill in missing dates
+
+### Plot ---------- 
 small.rich <- ggplot(small.rich.TS, aes(x=Date, y = small.richness)) +
   geom_line(color = "#56B4E9", alpha = 0.7) +
   geom_smooth(method = "loess", se = T, size = 1, col = "#56B4E9") + 
@@ -527,12 +569,30 @@ small.div <- ggplot(small.div.TS, aes(x=Date, y = small.shann)) +
   labs(x="Year",y="Species Diversity") +
   theme_light() 
 
+small.rich.fish <- ggplot(fish.small.rich.TS, aes(x=Date, y = small.richness)) +
+  geom_line(color = "#56B4E9", alpha = 0.7) +
+  geom_smooth(method = "loess", se = T, size = 1, col = "#56B4E9") + 
+  geom_hline(yintercept = mean(fish.small.rich.TS$small.richness, na.rm=T), linetype = 'dashed') +
+  labs(x="",y="Species Richness", tag = "b)") +
+  theme_light()
+
+small.div.fish <- ggplot(fish.small.div.TS, aes(x=Date, y = small.shann)) +
+  geom_line(color = "#56B4E9", alpha = 0.7) +
+  geom_smooth(method = "loess", se = T, size = 1, col = "#56B4E9") + 
+  geom_hline(yintercept = mean(fish.small.div.TS$small.shann, na.rm=T), linetype = 'dashed') +
+  labs(x="Year",y="Species Diversity") +
+  theme_light() 
+
 small.rich / small.div
+small.rich.fish / small.div.fish
 
 # FIGURE 1 - richness and diversity trends -----------------------
-(rich / div) | (small.rich / small.div)
+(fish.rich / fish.div) | (small.rich.fish / small.div.fish)
 
 ggsave("Figures/FIGURE_1.png", 
+       dpi=300, height=7, width=10, units='in')
+
+ggsave("Figures/FIGURE_1b.png", 
        dpi=300, height=7, width=10, units='in')
 
 ### Mann Kendall tests -------
@@ -818,16 +878,11 @@ ggsave("Figures/FIGURE_4.png",
        dpi=300, height=7, width=12, units='in')
 
 ### Rate of intro / departure ------------------------------------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-fishinfo.16 <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info.csv")
-
 smalltrawl <- smalltrawl %>%
   rename(Year = Year4,
-         CommonName = Common.name)
-
-smalltrawl <- filter(smalltrawl, ! is.na(CommonName))
-
-smalltrawl <- left_join(smalltrawl, fishinfo.16, by = "CommonName")
+         CommonName = Common.name) %>%
+  filter(smalltrawl, ! is.na(CommonName)) %>%
+  left_join(fishinfo.16, by = "CommonName")
 
 heatmap <- smalltrawl %>%
   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
@@ -1058,8 +1113,6 @@ fall.rich$coefficients #0.8160178
 spring.rich$coefficients #0.4669633
 
 ### 16-foot survey -----------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-
 small.rich.seasonal <- smalltrawl %>%
   rename(Year = Year4) %>%
   filter(Year %in% 1990:2019) %>%
@@ -1390,8 +1443,6 @@ slope.df <- slope %>%
 
 #write_csv(slope.df, "/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-slope.csv") 
 # write_csv(richness, "/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-richness.csv") 
-
-
 # FIGURE Sp. accum
 big.richness <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-richness.csv")
 big.slope <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/MS 2/30-foot-sp-accum-slope.csv")
@@ -1415,24 +1466,16 @@ big.slope.plot <- ggplot(big.slope) +
 big.SA.plot / big.slope.plot
 
 ## 16-foot survey ----------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-fishinfo.16 <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info.csv")
-
-smalltrawl <- smalltrawl %>%
+small.accu <- smalltrawl %>%
   rename(Year = Year4,
-         CommonName = Common.name)
-
-smalltrawl <- filter(smalltrawl, ! is.na(CommonName))
-
-smalltrawl <- left_join(smalltrawl, fishinfo.16, by = "CommonName")
-
-# loop 
-smalltrawl <- filter(smalltrawl, Year > 1979)
+         CommonName = Common.name) %>%
+  filter(! is.na(CommonName)) %>%
+  filter(Year > 1979)
 
 richness = NULL
 
-for(i in unique(smalltrawl$Year)) {
-  trawl <- smalltrawl %>%
+for(i in unique(small.accu$Year)) {
+  trawl <- small.accu %>%
     group_by(Trawl, SpecCode) %>%
     filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
     filter(Year == i) %>%
@@ -1521,11 +1564,6 @@ ggsave("Figures/FIGURE_5.png",
 
 # taken from Month_PresenceAbsence_Th.R
 
-New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
-require(tidyverse)
-require(ggplot2)
-require(reshape2)
-
 # Occurrences through time --------------------------------
 
 ## 30-foot survey --------
@@ -1588,9 +1626,6 @@ big.oc <- ggplot(sp.all, aes(fill=variable, y=value, x=reorder(CommonName,diff))
                     values = colorblind_palette)
 
 ## 16-foot survey -----------------------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-fishinfo.16 <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info.csv")
-
 smalltrawl <- smalltrawl %>%
   rename(Year = Year4,
          CommonName = Common.name) %>%
@@ -1663,10 +1698,6 @@ ggsave("Figures/FIGURE_6.png",
 # Fish Base Metrics -------------------------
 # look at MS2_community_metrics and MS2_length_freq 
 # MS2_occurences
-New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
-# new fish info with everything 
-fishinfo.30 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
-fishinfo.16 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info v2.csv")
 
 # big trawl 
 fish <- New.Data %>% 
@@ -1799,24 +1830,24 @@ f1 | f2
 
 ### 16-foot Feeding Habit ----------------------------------------------------------
 fish2 <- small.fish %>%
-  group_by(Year4, Common.name, Feeding.Habit2) %>%
+  group_by(Year4, Common.name, Feeding.Habit) %>%
   summarise(number = sum(number, na.rm=T)) %>%
   ungroup() %>%
-  mutate(Feeding.Habit2 = na_if(Feeding.Habit2, "")) %>%
-  filter(!is.na(Feeding.Habit2)) %>%
-  filter(Feeding.Habit2 %in% c("hunting macrofauna (predator)", "variable")) %>%
-  group_by(Year4, Feeding.Habit2) %>%
+  mutate(Feeding.Habit = na_if(Feeding.Habit, "")) %>%
+  filter(Feeding.Habit %in% c("predator", "variable")) %>%
+  filter(!is.na(Feeding.Habit)) %>%
+  group_by(Year4, Feeding.Habit) %>%
   summarise(number = sum(number,na.rm=T)) %>%
-  pivot_wider(values_from = number, names_from = Feeding.Habit2) %>%
+  pivot_wider(values_from = number, names_from = Feeding.Habit) %>%
   mutate(across(everything(), ~ replace_na(., 0))) %>%
   rowwise() %>%
-  mutate(across(`hunting macrofauna (predator)`:variable, ~ . / sum(c_across(`hunting macrofauna (predator)`:variable))))  %>%
+  mutate(across(predator:variable, ~ . / sum(c_across(predator:variable))))  %>%
   ungroup() %>%
-  pivot_longer(cols = `hunting macrofauna (predator)`:variable, values_to = "number", names_to = "feeding.habit")
+  pivot_longer(cols = predator:variable, values_to = "number", names_to = "feeding.habit")
 
 # stacked bar 
 f1 <- fish2 %>%
-  ggplot(aes(x = Year4, y = number, fill = factor(feeding.habit, levels=c("hunting macrofauna (predator)", "variable")))) + 
+  ggplot(aes(x = Year4, y = number, fill = factor(feeding.habit, levels=c("predator", "variable")))) + 
   geom_bar(stat = 'identity') + 
   ylab("Relative CPUE") +
   scale_fill_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable")) +
@@ -1850,24 +1881,29 @@ TL <- fish %>%
   summarise(TL = mean(Trophic.Level, na.rm=T)) %>% 
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(TL = mean(TL, na.rm=T)) 
+  summarise(mean.TL = mean(TL, na.rm=T),
+            #sd.TL = sd(TL, na.rm=T),
+            se.TL = sd(TL, na.rm=T) / sqrt(n())) 
 
-bigTL <- ggplot(TL, aes(x=Year, y=TL)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="gam") +
-  ylab("Trophic Level") +
-  xlab("Year") +
-  #ggtitle("30-foot survey") + 
-  theme_light() +  
-  theme(text = element_text(size=10))
+# Plot with Standard ERROR bars 
+ggplot(TL, aes(x = Year, y = mean.TL)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean.TL - se.TL, ymax = mean.TL + se.TL), 
+                width = 0.2) +
+  labs(y = "Preferred Temperature", x = "Year") +
+  geom_smooth(method = "lm") +
+  theme_light()
+
+### Model trophic level ----- 
+model <- glm(TL ~ Year, data = TL)
+summary(model) # not signif. 
 
 ### 30-foot Latitude -----------------------------------------
 #range <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/New_SpeciesRanges.csv")
 #range <- range[,-1]
 
 # USE NEW Spreadsheets!!!!!!!!!!!!!!!1
-
 latitude <-  fish %>% 
   group_by(Year, CommonName) %>% 
   summarise(upperlat= mean(upperlat, na.rm=T),
@@ -1875,44 +1911,56 @@ latitude <-  fish %>%
   mutate(midlat = upperlat - ((upperlat-lowerlat)/2)) %>%
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(lowerlat = mean(lowerlat,na.rm=T),
-            midlat = mean(midlat,na.rm=T),
-            upperlat = mean(upperlat,na.rm=T))
+  summarise(mean.lowerlat = mean(lowerlat,na.rm=T),
+            #sd.lowerlat = sd(lowerlat, na.rm=T),
+            se.lowerlat = sd(lowerlat, na.rm=T) / sqrt(n()),
+            mean.midlat = mean(midlat,na.rm=T),
+            #sd.midlat = sd(midlat, na.rm=T),
+            se.midlat = sd(midlat, na.rm=T) / sqrt(n()),
+            mean.upperlat = mean(upperlat,na.rm=T),
+            #sd.upperlat = sd(upperlat, na.rm=T),
+            se.upperlat = sd(upperlat, na.rm=T) / sqrt(n()))
 
-#lower lattitude is getting further south
-big.lower.lat <- latitude %>%
-  ggplot(aes(x=Year, y = lowerlat)) +
-  geom_line() + 
-  geom_point() + 
+# Plot with Standard ERROR bars (midlat)
+ggplot(latitude, aes(x = Year, y = mean.midlat)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean.midlat - se.midlat, ymax = mean.midlat + se.midlat), 
+                width = 0.2) +
+  labs(y = "Latitude", x = "Year") +
   geom_smooth(method = "lm") +
-  ylab("Mean Lower Lat") + 
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+  theme_light()
 
-big.upper.lat <- latitude %>%
-  ggplot(aes(x=Year, y = upperlat)) +
-  geom_line() + 
-  geom_point() + 
-  #ggtitle("30-foot survey") + 
-  geom_smooth(method = "lm") +
-  ylab("Mean Upper Lat") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+### Model latitude ----- 
+model <- glm(midlat ~ Year, data = latitude)
+summary(model) # signif
 
-#mid latitude is getting further south
-big.mid.lat <- latitude %>%
-  ggplot(aes(x=Year, y = midlat)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method = "lm") +
-  ylab("Mean Mid Lat") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(latitude$Year) - min(latitude$Year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(latitude$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # -12.26295% decrease overall 
 
 ### 30-foot Preferred Temperature  ----------------------------
-# weight by abundance? 
+# try confidence intervals -- calculate SD (or SE)
 temp <- fish %>% 
   group_by(Year, CommonName) %>% 
   summarise(temp = mean(Temp.mean, na.rm=T),
@@ -1920,68 +1968,59 @@ temp <- fish %>%
             mintemp = mean(Temp.min, na.rm=T)) %>%
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(temp = mean(temp, na.rm=T),
-            maxtemp = mean(maxtemp, na.rm=T),
-            mintemp = mean(mintemp, na.rm=T))
+  filter(!is.nan(temp)) %>%
+  summarise(mean.temp = mean(temp, na.rm=T),
+            #sd.temp = sd(temp, na.rm=T),
+            se.temp = sd(temp, na.rm=T) / sqrt(n()),
+            mean.maxtemp = mean(maxtemp, na.rm=T),
+            #sd.maxtemp = sd(maxtemp, na.rm=T),
+            se.maxtemp = sd(maxtemp, na.rm=T) / sqrt(n()),
+            mean.mintemp = mean(mintemp, na.rm=T),
+            #sd.mintemp = sd(mintemp, na.rm=T),
+            se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
+            .groups = "drop")
 
-# mean temp  
-mean.temp.big <- fish %>% 
-  group_by(Year, CommonName) %>% 
-  summarise(temp = mean(Temp.mean, na.rm=T)) %>%
-  ungroup() %>%
-  group_by(Year) %>% 
-  summarise(temp = mean(temp, na.rm=T)) %>%
-  ggplot(aes(x=Year, y = temp)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="lm") +
-  ylab("Mean Temp (C)") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+# Plot with Standard ERROR bars (mean pref temp)
+ggplot(temp, aes(x = Year, y = mean.temp)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean.temp - se.temp, ymax = mean.temp + se.temp), 
+                width = 0.2) +  # Error bars
+  labs(y = "Preferred Temperature", x = "Year") +
+  geom_smooth(method = "lm") +
+  theme_light()
 
-# max temp 
-max.temp.big <- fish %>% 
-  group_by(Year, CommonName) %>% 
-  summarise(maxtemp = mean(Temp.max, na.rm=T)) %>% 
-  ungroup() %>%
-  group_by(Year) %>% 
-  summarise(maxtemp = mean(maxtemp, na.rm=T)) %>%
-  ggplot(aes(x=Year, y = maxtemp)) +
-  geom_line() + 
-  geom_point() + 
-  #ggtitle("30-foot survey") + 
-  geom_smooth(method="lm") +
-  ylab("Max Temp (C)") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+### Model preferred temp ----- 
+model <- glm(temp ~ Year, data = temp)
+summary(model) # signif
 
-# min temp 
-min.temp.big <- fish %>% 
-  group_by(Year, CommonName) %>% 
-  summarise(mintemp = mean(Temp.min, na.rm=T))  %>%
-  ungroup() %>%
-  group_by(Year) %>% 
-  summarise(mintemp = mean(mintemp, na.rm=T)) %>%
-  ggplot(aes(x=Year, y = mintemp)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="lm") +
-  ylab("Min Temp (C)") + 
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
 
-max.temp.big / mean.temp.big / min.temp.big
+# Calculate the total number of years
+n_years <- max(temp$Year) - min(temp$Year)
 
-(max.temp.big / mean.temp.big / min.temp.big) | (big.upper.lat / big.mid.lat / big.lower.lat)
-#big.upper.lat / big.mid.lat / big.lower.lat
-#(p2 / p3 / p1) | max.temp / mean.temp / min.temp
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(temp$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 10.68071% increase overall 
 
 ### 30-foot length ---------------
 ## From MS2_Length_Analysis.R
 # pull out species names 
-New.Data <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/2019TrawlData.csv")
 dat <- select(New.Data, SpeciesCode, CommonName, Group) %>%
   distinct() %>%
   rename(SpecCode = SpeciesCode)
@@ -1990,62 +2029,58 @@ dat <- select(New.Data, SpeciesCode, CommonName, Group) %>%
 lengths <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Length_Data.csv")
 
 # separate out 
-lengths <- separate(lengths, col = Trawl, into = c("Year", "Month", "Day", "Time", "Station"), sep = "-") %>%
-  mutate(Year = as.numeric(Year))
+len <- separate(lengths, col = Trawl, into = c("Year", "Month", "Day", "Time", "Station"), sep = "-") %>%
+  mutate(Year = as.numeric(Year)) %>%
+  right_join(dat, lengths, by = "SpecCode") %>%
+  filter(length < 999) %>%
+  filter(!is.na(CommonName)) %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>% # JUST FISH 
+  uncount(freq) %>% # repeat rows by frequency
+  group_by(Year, CommonName) %>% 
+  summarise(length = mean(length, na.rm=T)) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(mean.length = mean(length,na.rm=T),
+            #sd.length = sd(length,na.rm=T),
+            se.length = sd(length,na.rm=T)/sqrt(n()))
 
-# add in species common names 
-lengths <- right_join(dat, lengths, by = "SpecCode") %>%
-  filter(length < 999)
+# Plot with Standard ERROR bars (length)
+ggplot(len, aes(x = Year, y = mean.length)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean.length - se.length, ymax = mean.length + se.length), 
+                width = 0.2) +
+  labs(y = "Length", x = "Year") +
+  geom_smooth(method = "lm") +
+  theme_light()
 
-# By species -- by year 
-# mean weighted by frequency *********
-len2 <- lengths %>% 
-  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
-  group_by(Year, SpecCode) %>% 
-  summarise(length = weighted.mean(length, freq, na.rm=T))
+### Model length ----- 
+model <- glm(mean.length ~ Year, data = len)
+summary(model) # signif
 
-len <- len2 %>% 
-  group_by(Year) %>% 
-  summarise(length = mean(length, na.rm=T)) 
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # -0.932753 -- means increased X per year on average 
 
-ggplot(len, aes(x=Year, y = length)) +
-  geom_line(group=1) + 
-  geom_point() + 
-  ggtitle("30-foot survey") + 
-  geom_smooth(method="loess") +
-  ylab("Mean Length") + 
-  theme_classic() +  
-  theme(text = element_text(size=15)) 
+# Calculate the total number of years
+n_years <- max(len$Year) - min(len$Year)
 
-# Summarize data with mean and standard deviation
-len3 <- len2 %>% 
-  group_by(Year) %>% 
-  summarize(
-    mean_length = mean(length, na.rm=T),
-    sd_length = sd(length, na.rm=T),  # Calculate standard deviation
-    .groups = "drop"
-  )
-# Plot with ggplot2
-ggplot(len3, aes(x = Year, y = mean_length)) +
-  geom_line(color = "blue") +
-  geom_ribbon(aes(ymin = mean_length - sd_length, ymax = mean_length + sd_length), alpha = 0.2, fill = "blue") +
-  #labs(x = "X", y = "Mean Y", title = "Line Plot with Standard Deviation") +
-  theme_minimal()
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
 
-# ### By year -- all individuals 
-# len <- lengths %>% 
-#   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
-#   group_by(Year) %>% 
-#   summarise(length = weighted.mean(length, freq, na.rm=T))
-# 
-# ggplot(len, aes(x=Year, y = length)) +
-#   geom_line(group=1) + 
-#   geom_point() + 
-#   ggtitle("30-foot survey") + 
-#   geom_smooth(method="loess") +
-#   ylab("Mean Length") + 
-#   theme_classic() +  
-#   theme(text = element_text(size=15)) 
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(len$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent change
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # -19.20922% decrease  overall 
 
 ### 16-foot Trophic Level -----------------------------
 small.TL <- small.fish %>% 
@@ -2054,17 +2089,10 @@ small.TL <- small.fish %>%
   summarise(TL = mean(Trophic.Level, na.rm=T)) %>% 
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(TL = mean(TL, na.rm=T)) 
+  summarise(mean.TL = mean(TL, na.rm=T),
+            #sd.TL = sd(TL, na.rm=T),
+            se.TL = sd(TL, na.rm=T) / sqrt(n())) 
 
-smallTL <- ggplot(TL, aes(x=Year, y=TL)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="gam") +
-  ylab("Trophic Level") +
-  xlab("Year") +
-  #ggtitle("30-foot survey") + 
-  theme_light() +  
-  theme(text = element_text(size=10))
 
 ### 16-foot Latitude ----------------------------------------
 small.latitude <-  small.fish %>% 
@@ -2075,41 +2103,15 @@ small.latitude <-  small.fish %>%
   mutate(midlat = upperlat - ((upperlat-lowerlat)/2)) %>%
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(lowerlat = mean(lowerlat,na.rm=T),
-            midlat = mean(midlat,na.rm=T),
-            upperlat = mean(upperlat,na.rm=T))
-
-#lower lattitude is getting further south
-small.lower.lat <- latitude %>%
-  ggplot(aes(x=Year, y = lowerlat)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method = "lm") +
-  ylab("Mean Lower Lat") + 
-  theme_light() +  
-  theme(text = element_text(size=10)) 
-
-small.upper.lat <- latitude %>%
-  ggplot(aes(x=Year4, y = upperlat)) +
-  geom_line() + 
-  geom_point() + 
-  #ggtitle("30-foot survey") + 
-  geom_smooth(method = "lm") +
-  ylab("Mean Upper Lat") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
-
-#mid latitude is getting further south
-small.mid.lat <- latitude %>%
-  ggplot(aes(x=Year4, y = midlat)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method = "lm") +
-  ylab("Mean Mid Lat") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
+  summarise(mean.lowerlat = mean(lowerlat,na.rm=T),
+            #sd.lowerlat = sd(lowerlat, na.rm=T),
+            se.lowerlat = sd(lowerlat, na.rm=T) / sqrt(n()),
+            mean.midlat = mean(midlat,na.rm=T),
+            #sd.midlat = sd(midlat, na.rm=T),
+            se.midlat = sd(midlat, na.rm=T) / sqrt(n()),
+            mean.upperlat = mean(upperlat,na.rm=T),
+            #sd.upperlat = sd(upperlat, na.rm=T),
+            se.upperlat = sd(upperlat, na.rm=T) / sqrt(n()))
 
 ### 16-foot Preferred Temperature  ----------------------------
 # weight by abundance? 
@@ -2121,166 +2123,132 @@ small.temp <- small.fish %>%
             mintemp = mean(Temp.min, na.rm=T)) %>%
   ungroup() %>%
   group_by(Year) %>% 
-  summarise(temp = mean(temp, na.rm=T),
-            maxtemp = mean(maxtemp, na.rm=T),
-            mintemp = mean(mintemp, na.rm=T))
-
-# mean temp  
-mean.temp.small <- small.fish %>% 
-  group_by(Year, CommonName) %>% 
-  summarise(temp = mean(Temp.mean, na.rm=T)) %>%
-  ungroup() %>%
-  group_by(Year4) %>% 
-  summarise(temp = mean(temp, na.rm=T)) %>%
-  ggplot(aes(x=Year4, y = temp)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="lm") +
-  ylab("Mean Temp (C)") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
-
-# max temp 
-max.temp.small <- small.fish %>% 
-  group_by(Year4, CommonName) %>% 
-  summarise(maxtemp = mean(Temp.max, na.rm=T)) %>% 
-  ungroup() %>%
-  group_by(Year4) %>% 
-  summarise(maxtemp = mean(maxtemp, na.rm=T)) %>%
-  ggplot(aes(x=Year4, y = maxtemp)) +
-  geom_line() + 
-  geom_point() + 
-  #ggtitle("30-foot survey") + 
-  geom_smooth(method="lm") +
-  ylab("Max Temp (C)") + 
-  xlab("") +
-  theme_light() +  
-  theme(text = element_text(size=10)) 
-
-# min temp 
-min.temp.small <- small.fish %>% 
-  group_by(Year4, CommonName) %>% 
-  summarise(mintemp = mean(Temp.min, na.rm=T))  %>%
-  ungroup() %>%
-  group_by(Year4) %>% 
-  summarise(mintemp = mean(mintemp, na.rm=T)) %>%
-  ggplot(aes(x=Year4, y = mintemp)) +
-  geom_line() + 
-  geom_point() + 
-  geom_smooth(method="lm") +
-  ylab("Min Temp (C)") + 
-  theme_light() +  
-  theme(text = element_text(size=10)) 
-
+  summarise(mean.temp = mean(temp, na.rm=T),
+            #sd.temp = sd(temp, na.rm=T),
+            se.temp = sd(temp, na.rm=T) / sqrt(n()),
+            mean.maxtemp = mean(maxtemp, na.rm=T),
+            #sd.maxtemp = sd(maxtemp, na.rm=T),
+            se.maxtemp = sd(maxtemp, na.rm=T) / sqrt(n()),
+            mean.mintemp = mean(mintemp, na.rm=T),
+            #sd.mintemp = sd(mintemp, na.rm=T),
+            se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
+            .groups = "drop")
 
 ## 16-foot Lengths ------------------
-smalltrawl <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SmallTrawl_DATA.csv")
-groups <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/SpeciesGroups2.csv")
-
-smalltrawl <- smalltrawl %>%
+smalltrawl.2 <- smalltrawl %>%
   rename(Year = Year4,
          CommonName = Common.name) %>%
   filter(! is.na(CommonName))
 
-smalltrawl <- left_join(smalltrawl, groups, by = "CommonName")
-
 # read length data 
 small.lengths <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Length_Data_small-trawl.csv")
 
-dat <- select(smalltrawl, SpecCode, CommonName, Group) %>%
+small.len <- smalltrawl.2 %>%
+  select(SpecCode, CommonName, Group) %>%
   distinct() %>%
   na.omit() %>%
-  mutate(SpecCode = as.double(SpecCode))
-
-lengths <- right_join(dat, small.lengths, by = "SpecCode") %>%
-  filter(Length < 999)
-
-# mean weighted by frequency *********
-len2 <- lengths %>% 
-  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
-  group_by(Year, SpecCode) %>% 
-  summarise(Length = weighted.mean(Length, freq, na.rm=T))
-
-small.len <- len2 %>% 
-  group_by(Year) %>% 
-  summarise(Length = mean(Length, na.rm=T)) 
-
-ggplot(small.len, aes(x=Year, y = Length)) +
-  geom_line(group=1) + 
-  geom_point() + 
-  geom_smooth(method="loess") +
-  ylab("Mean Length") + 
-  theme_classic() +  
-  theme(text = element_text(size=15)) 
+  mutate(SpecCode = as.double(SpecCode)) %>%
+  right_join(small.lengths, by = "SpecCode") %>%
+  filter(Length < 999) %>%
+  filter(!is.na(CommonName)) %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>% # JUST FISH 
+  uncount(freq) %>% # repeat rows by frequency
+  group_by(Year, CommonName) %>% 
+  summarise(length = mean(Length, na.rm=T)) %>%
+  ungroup() %>%
+  group_by(Year) %>%
+  summarise(mean.length = mean(length,na.rm=T),
+            #sd.length = sd(length,na.rm=T),
+            se.length = sd(length,na.rm=T)/sqrt(n()))
 
 # FIGURE 7 - 30-foot fishbase metrics -------------
-# plot 
-small.all <- small.temp %>%
-  left_join(small.TL, by = "Year") %>%
-  left_join(small.latitude, by = "Year") %>%
-  left_join(small.len, by = "Year") %>%
-  rename("Trophic Level" = "TL", 
-         "Mean Temp" = "temp", 
-         "Max Temp" = "maxtemp", 
-         "Min Temp" = "mintemp",
-         "Lower Latitude" = "lowerlat",
-         "Upper Latitutde" = "upperlat",
-         "Mid Latitude" = "midlat") %>%
-  pivot_longer(cols = 2:9, names_to = "Metric", values_to = "Value") %>%
-  mutate(Group = case_when(
-    Metric %in% c("Mean Temp", "Max Temp","Min Temp") ~ "Temperature",
-    Metric %in% c("Trophic Level") ~ "Trophic Level",
-    Metric %in% c("Mid Latitude", "Upper Latitutde","Lower Latitude") ~ "Latitude",
-    Metric %in% c("Length") ~ "Length"
-  )) 
+all <- temp %>%
+  left_join(TL, by = "Year") %>%
+  left_join(latitude, by = "Year") %>%
+  left_join(len, by = c("Year" = "Year")) %>%
+  pivot_longer(cols = 2:17, names_to = "Metric", values_to = "Value") %>%
+  mutate(Stat = case_when(
+    Metric %in% c("mean.temp", "mean.maxtemp","mean.mintemp","mean.TL","mean.lowerlat","mean.midlat","mean.upperlat","mean.length") ~ "Mean",
+    #Metric %in% c("sd.temp", "sd.maxtemp","sd.mintemp","sd.TL","sd.lowerlat","sd.midlat","sd.upperlat","sd.length") ~ "SD",
+    Metric %in% c("se.temp", "se.maxtemp","se.mintemp","se.TL","se.lowerlat","se.midlat","se.upperlat","se.length") ~ "SE"
+  ),
+  Group = case_when(
+    Metric %in% c("mean.temp", "mean.maxtemp","mean.mintemp",
+                  #"sd.temp", "sd.maxtemp","sd.mintemp",
+                  "se.temp", "se.maxtemp","se.mintemp") ~ "Temperature",
+    Metric %in% c("mean.TL", 
+                  #"sd.TL", 
+                  "se.TL") ~ "Trophic Level",
+    Metric %in% c("mean.lowerlat","mean.midlat","mean.upperlat",
+                  #"sd.lowerlat","sd.midlat","sd.upperlat", 
+                  "se.lowerlat","se.midlat","se.upperlat") ~ "Latitude",
+    Metric %in% c("mean.length", 
+                  #"sd.length", 
+                  "se.length") ~ "Length"
+  )) %>%
+  mutate(Metric = sub("mean\\.|se\\.", "", Metric)) %>%
+  pivot_wider(names_from = "Stat", values_from = "Value")
 
-small.all %>%
-  ggplot(aes(x = Year, y = Value, color = Group)) +
+# plot 
+all %>%
+  ggplot(aes(x = Year, y = Mean, color = Group)) +
   geom_line() +
-  #geom_point() +
+  geom_point() +
   geom_smooth(method = "lm") +
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean + SE), 
+                width = 0.2) +
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
-  theme_light() #+
-  #theme(strip.background.x = element_blank())
+  theme_light() 
 
-ggsave("Figures/FIGURE_7b.png", 
+ggsave("Figures/FIGURE_7.png", 
        dpi=300, height=7, width=14, units='in')
 
 # FIGURE 7b - 16-foot fishbase metrics -------------
-# plot 
-all <- temp %>%
-  left_join(smallTL, by = "Year4") %>%
-  left_join(latitude, by = "Year4") %>%
-  left_join(len, by = c("Year" = "Year4")) %>%
-  rename("Trophic Level" = "TL", 
-         "Mean Temp" = "temp", 
-         "Max Temp" = "maxtemp", 
-         "Min Temp" = "mintemp",
-         "Lower Latitude" = "lowerlat",
-         "Upper Latitutde" = "upperlat",
-         "Mid Latitude" = "midlat",
-         "Length" = "length") %>%
-  pivot_longer(cols = 2:9, names_to = "Metric", values_to = "Value") %>%
-  mutate(Group = case_when(
-    Metric %in% c("Mean Temp", "Max Temp","Min Temp") ~ "Temperature",
-    Metric %in% c("Trophic Level") ~ "Trophic Level",
-    Metric %in% c("Mid Latitude", "Upper Latitutde","Lower Latitude") ~ "Latitude",
-    Metric %in% c("Length") ~ "Length"
-  )) 
 
-all %>%
-  ggplot(aes(x = Year, y = Value, color = Group)) +
+small.all <- small.temp %>%
+  left_join(small.TL, by = "Year") %>%
+  left_join(small.latitude, by = "Year") %>%
+  left_join(small.len, by = c("Year" = "Year")) %>%
+  pivot_longer(cols = 2:17, names_to = "Metric", values_to = "Value") %>%
+  mutate(Stat = case_when(
+    Metric %in% c("mean.temp", "mean.maxtemp","mean.mintemp","mean.TL","mean.lowerlat","mean.midlat","mean.upperlat","mean.length") ~ "Mean",
+    #Metric %in% c("sd.temp", "sd.maxtemp","sd.mintemp","sd.TL","sd.lowerlat","sd.midlat","sd.upperlat","sd.length") ~ "SD",
+    Metric %in% c("se.temp", "se.maxtemp","se.mintemp","se.TL","se.lowerlat","se.midlat","se.upperlat","se.length") ~ "SE"
+  ),
+  Group = case_when(
+    Metric %in% c("mean.temp", "mean.maxtemp","mean.mintemp",
+                  #"sd.temp", "sd.maxtemp","sd.mintemp",
+                  "se.temp", "se.maxtemp","se.mintemp") ~ "Temperature",
+    Metric %in% c("mean.TL", 
+                  #"sd.TL", 
+                  "se.TL") ~ "Trophic Level",
+    Metric %in% c("mean.lowerlat","mean.midlat","mean.upperlat",
+                  #"sd.lowerlat","sd.midlat","sd.upperlat", 
+                  "se.lowerlat","se.midlat","se.upperlat") ~ "Latitude",
+    Metric %in% c("mean.length", 
+                  #"sd.length", 
+                  "se.length") ~ "Length"
+  )) %>%
+  mutate(Metric = sub("mean\\.|se\\.", "", Metric)) %>%
+  pivot_wider(names_from = "Stat", values_from = "Value")
+
+# plot 
+small.all %>%
+  ggplot(aes(x = Year, y = Mean, color = Group)) +
   geom_line() +
-  #geom_point() +
+  geom_point() +
   geom_smooth(method = "lm") +
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean + SE), 
+                width = 0.2) +
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
-  theme_light() #+
-#theme(strip.background.x = element_blank())
+  theme_light() 
 
 ggsave("Figures/FIGURE_7.png", 
+       dpi=300, height=7, width=14, units='in')
+
+ggsave("Figures/FIGURE_7b.png", 
        dpi=300, height=7, width=14, units='in')
 
 # GAM -------------------------
