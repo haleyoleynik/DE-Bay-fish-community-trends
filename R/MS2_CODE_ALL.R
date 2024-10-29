@@ -18,6 +18,7 @@ require(zoo)
 require(data.table)
 require(ggplot2)
 require(readr)
+require(ggridges)
 
 # Colorblind palette for all plots ----------- 
 colorblind_palette <- c(
@@ -1885,16 +1886,6 @@ TL <- fish %>%
             #sd.TL = sd(TL, na.rm=T),
             se.TL = sd(TL, na.rm=T) / sqrt(n())) 
 
-# Plot with Standard ERROR bars 
-ggplot(TL, aes(x = Year, y = mean.TL)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean.TL - se.TL, ymax = mean.TL + se.TL), 
-                width = 0.2) +
-  labs(y = "Preferred Temperature", x = "Year") +
-  geom_smooth(method = "lm") +
-  theme_light()
-
 ### Model trophic level ----- 
 model <- glm(TL ~ Year, data = TL)
 summary(model) # not signif. 
@@ -1920,16 +1911,6 @@ latitude <-  fish %>%
             mean.upperlat = mean(upperlat,na.rm=T),
             #sd.upperlat = sd(upperlat, na.rm=T),
             se.upperlat = sd(upperlat, na.rm=T) / sqrt(n()))
-
-# Plot with Standard ERROR bars (midlat)
-ggplot(latitude, aes(x = Year, y = mean.midlat)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean.midlat - se.midlat, ymax = mean.midlat + se.midlat), 
-                width = 0.2) +
-  labs(y = "Latitude", x = "Year") +
-  geom_smooth(method = "lm") +
-  theme_light()
 
 ### Model latitude ----- 
 model <- glm(midlat ~ Year, data = latitude)
@@ -1980,16 +1961,6 @@ temp <- fish %>%
             se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
             .groups = "drop")
 
-# Plot with Standard ERROR bars (mean pref temp)
-ggplot(temp, aes(x = Year, y = mean.temp)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean.temp - se.temp, ymax = mean.temp + se.temp), 
-                width = 0.2) +  # Error bars
-  labs(y = "Preferred Temperature", x = "Year") +
-  geom_smooth(method = "lm") +
-  theme_light()
-
 ### Model preferred temp ----- 
 model <- glm(temp ~ Year, data = temp)
 summary(model) # signif
@@ -2020,7 +1991,6 @@ percent_increase_overall # 10.68071% increase overall
 
 ### 30-foot length ---------------
 ## From MS2_Length_Analysis.R
-# pull out species names 
 dat <- select(New.Data, SpeciesCode, CommonName, Group) %>%
   distinct() %>%
   rename(SpecCode = SpeciesCode)
@@ -2043,16 +2013,6 @@ len <- separate(lengths, col = Trawl, into = c("Year", "Month", "Day", "Time", "
   summarise(mean.length = mean(length,na.rm=T),
             #sd.length = sd(length,na.rm=T),
             se.length = sd(length,na.rm=T)/sqrt(n()))
-
-# Plot with Standard ERROR bars (length)
-ggplot(len, aes(x = Year, y = mean.length)) +
-  geom_point() +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean.length - se.length, ymax = mean.length + se.length), 
-                width = 0.2) +
-  labs(y = "Length", x = "Year") +
-  geom_smooth(method = "lm") +
-  theme_light()
 
 ### Model length ----- 
 model <- glm(mean.length ~ Year, data = len)
@@ -2081,6 +2041,81 @@ predicted_temp_start <- intercept + coef_year * start_year
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
 percent_increase_overall # -19.20922% decrease  overall 
+
+#### Length distribution ------------
+# Model distribution through time 
+dat <- select(New.Data, SpeciesCode, CommonName, Group) %>%
+  distinct() %>%
+  rename(SpecCode = SpeciesCode)
+
+# lengths data from MS2_Length_Freq.R code 
+lengths <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/Length_Data.csv")
+
+# separate out 
+length.dist <- separate(lengths, col = Trawl, into = c("Year", "Month", "Day", "Time", "Station"), sep = "-") %>%
+  mutate(Year = as.numeric(Year)) %>%
+  right_join(dat, lengths, by = "SpecCode") %>%
+  filter(length < 999) %>%
+  filter(!is.na(CommonName)) %>%
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>% # JUST FISH 
+  uncount(freq) %>% # repeat rows by frequency
+  group_by(Year, CommonName) %>% 
+  summarise(length = mean(length, na.rm=T)) %>%
+  ungroup() 
+
+# Create the ridgeline plot
+ggplot(length.dist, aes(x = log(length), y = as.factor(Year))) +
+  geom_density_ridges(alpha = 0.7, scale = 1.2) +
+  labs(
+    title = "Distribution of Lengths by Year",
+    x = "Length (mm)",
+    y = "Year"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Calculate mean log(length) for each year
+mean_lengths <- length.dist %>%
+  group_by(Year) %>%
+  summarise(mean_log_length = mean(log(length), na.rm = TRUE))
+
+library(ggplot2)
+library(ggridges)
+library(dplyr)
+
+# Calculate mean log(length) for each year
+mean_lengths <- length.dist %>%
+  group_by(Year) %>%
+  summarise(mean_log_length = mean(log(length), na.rm = TRUE))
+
+library(ggplot2)
+library(ggridges)
+library(dplyr)
+
+# Calculate mean log(length) for each year
+mean_lengths <- length.dist %>%
+  group_by(Year) %>%
+  summarise(mean_log_length = mean(log(length), na.rm = TRUE))
+
+# Plot with a single point for the mean length in each year
+ggplot(length.dist, aes(x = log(length), y = as.factor(Year))) +
+  geom_density_ridges(alpha = 0.7, scale = 1.2) +
+  geom_point(data = mean_lengths, aes(x = mean_log_length, y = as.factor(Year)), 
+             color = "red", size = 2, shape = 18) + # Using a small dot or shape for clarity
+  labs(
+    title = "Distribution of Lengths by Year",
+    x = "Length (mm)",
+    y = "Year"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+x %>%
+  group_by(Year) %>%
+  summarise(mean.length = mean(length,na.rm=T),
+            #sd.length = sd(length,na.rm=T),
+            se.length = sd(length,na.rm=T)/sqrt(n()))
 
 ### 16-foot Trophic Level -----------------------------
 small.TL <- small.fish %>% 
@@ -2244,9 +2279,6 @@ small.all %>%
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
   theme_light() 
-
-ggsave("Figures/FIGURE_7.png", 
-       dpi=300, height=7, width=14, units='in')
 
 ggsave("Figures/FIGURE_7b.png", 
        dpi=300, height=7, width=14, units='in')
