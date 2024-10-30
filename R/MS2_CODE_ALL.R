@@ -1750,6 +1750,22 @@ p2 <- try %>%
 
 p1 | p2
 
+### Model environment -------
+env <- fish %>%
+  group_by(Year, CommonName, Environment) %>%
+  summarise(number = sum(number, na.rm=T)) %>%
+  ungroup() %>%
+  filter(!is.na(Environment)) %>%
+  group_by(Year, Environment) %>%
+  summarise(number = sum(number,na.rm=T)) %>%
+  pivot_wider(values_from = number, names_from = Environment) %>%
+  rowwise() %>%
+  mutate(across(benthopelagic:`reef-associated`, ~ . / sum(c_across(benthopelagic:`reef-associated`)))) %>%
+  ungroup()
+
+model <- glm(`reef-associated` ~ Year, data = env)
+summary(model)
+
 ### 16-foot Environment -------------------------------------------------------------
 try <- small.fish %>%
   group_by(Year4, Common.name, Environment) %>%
@@ -2206,6 +2222,9 @@ small.TL <- small.fish %>%
             #sd.TL = sd(TL, na.rm=T),
             se.TL = sd(TL, na.rm=T) / sqrt(n())) 
 
+### Model trophic level ----- 
+model <- glm(mean.TL ~ Year, data = small.TL)
+summary(model) # not signif. 
 
 ### 16-foot Latitude ----------------------------------------
 small.latitude <-  small.fish %>% 
@@ -2225,6 +2244,34 @@ small.latitude <-  small.fish %>%
             mean.upperlat = mean(upperlat,na.rm=T),
             #sd.upperlat = sd(upperlat, na.rm=T),
             se.upperlat = sd(upperlat, na.rm=T) / sqrt(n()))
+
+### Model Latitude ----- 
+model <- glm(mean.upperlat ~ Year, data = small.latitude)
+summary(model) 
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # -0.06566188 - means decreased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(small.latitude$Year) - min(small.latitude$Year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(small.latitude$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # -12.26295% decrease overall 
 
 ### 16-foot Preferred Temperature  ----------------------------
 # weight by abundance? 
@@ -2246,6 +2293,11 @@ small.temp <- small.fish %>%
             #sd.mintemp = sd(mintemp, na.rm=T),
             se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
             .groups = "drop")
+
+### Model Preferred temp ----- 
+model <- glm(mean.temp ~ Year, data = small.temp)
+summary(model) 
+
 
 ## 16-foot Lengths ------------------
 smalltrawl.2 <- smalltrawl %>%
@@ -2273,6 +2325,10 @@ small.len <- smalltrawl.2 %>%
   summarise(mean.length = mean(length,na.rm=T),
             #sd.length = sd(length,na.rm=T),
             se.length = sd(length,na.rm=T)/sqrt(n()))
+
+### Model length ----- 
+model <- glm(mean.length ~ Year, data = small.len)
+summary(model) 
 
 # FIGURE 7 - 30-foot fishbase metrics -------------
 all <- temp %>%
