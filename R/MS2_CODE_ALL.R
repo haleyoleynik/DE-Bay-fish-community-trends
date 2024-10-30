@@ -1913,11 +1913,11 @@ latitude <-  fish %>%
             se.upperlat = sd(upperlat, na.rm=T) / sqrt(n()))
 
 ### Model latitude ----- 
-model <- glm(midlat ~ Year, data = latitude)
+model <- glm(mean.midlat ~ Year, data = latitude)
 summary(model) # signif
 
 # Get the coefficient for the year (the long-term trend)
-coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
+coef_year <- coef(model)["Year"] # -0.06566188 - means decreased .34 per year on average 
 
 # Calculate the total number of years
 n_years <- max(latitude$Year) - min(latitude$Year)
@@ -1939,6 +1939,34 @@ predicted_temp_start <- intercept + coef_year * start_year
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
 percent_increase_overall # -12.26295% decrease overall 
+
+# lowerlat
+model <- glm(mean.lowerlat ~ Year, data = latitude)
+summary(model) # signif
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # -0.1305788  -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(latitude$Year) - min(latitude$Year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(latitude$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall #-88.1169 % decrease overall 
 
 ### 30-foot Preferred Temperature  ----------------------------
 # try confidence intervals -- calculate SD (or SE)
@@ -1962,7 +1990,7 @@ temp <- fish %>%
             .groups = "drop")
 
 ### Model preferred temp ----- 
-model <- glm(temp ~ Year, data = temp)
+model <- glm(mean.temp ~ Year, data = temp)
 summary(model) # signif
 
 # Get the coefficient for the year (the long-term trend)
@@ -1988,6 +2016,56 @@ predicted_temp_start <- intercept + coef_year * start_year
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
 percent_increase_overall # 10.68071% increase overall 
+
+temp <- fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(temp = mean(Temp.mean, na.rm=T),
+            maxtemp = mean(Temp.max, na.rm=T),
+            mintemp = mean(Temp.min, na.rm=T)) %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  filter(!is.nan(temp)) %>%
+  summarise(mean.temp = mean(temp, na.rm=T),
+            #sd.temp = sd(temp, na.rm=T),
+            se.temp = sd(temp, na.rm=T) / sqrt(n()),
+            mean.maxtemp = mean(maxtemp, na.rm=T),
+            #sd.maxtemp = sd(maxtemp, na.rm=T),
+            se.maxtemp = sd(maxtemp, na.rm=T) / sqrt(n()),
+            mean.mintemp = mean(mintemp, na.rm=T),
+            #sd.mintemp = sd(mintemp, na.rm=T),
+            se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
+            .groups = "drop")
+
+model <- glm(mean.mintemp ~ Year, data = temp)
+summary(model) # signif
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(temp$Year) - min(temp$Year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(temp$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall 
+
+# mean temp 10.68071% increase overall 
+# maxtemp 5.697029% increase overall 
+# mintemp 13.50025% increase overall 
 
 ### 30-foot length ---------------
 ## From MS2_Length_Analysis.R
@@ -2040,7 +2118,9 @@ predicted_temp_start <- intercept + coef_year * start_year
 # Calculate the overall percent change
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
-percent_increase_overall # -19.20922% decrease  overall 
+percent_increase_overall 
+
+# -19.20922% decrease  overall 
 
 #### Length distribution ------------
 # Model distribution through time 
@@ -2063,34 +2143,32 @@ length.dist <- separate(lengths, col = Trawl, into = c("Year", "Month", "Day", "
   summarise(length = mean(length, na.rm=T)) %>%
   ungroup() 
 
-# Create the ridgeline plot
-ggplot(length.dist, aes(x = log(length), y = as.factor(Year))) +
+# RAW LENGTH
+p1 <- ggplot(length.dist, aes(x = length, y = as.factor(Year))) +
   geom_density_ridges(alpha = 0.7, scale = 1.2) +
   labs(
-    title = "Distribution of Lengths by Year",
+    #title = "Distribution of Lengths by Year",
     x = "Length (mm)",
     y = "Year"
   ) +
   theme_minimal() +
   theme(legend.position = "none")
 
-# Calculate mean log(length) for each year
-mean_lengths <- length.dist %>%
-  group_by(Year) %>%
-  summarise(mean_log_length = mean(log(length), na.rm = TRUE))
+# LOG LENGTH
+p2 <- ggplot(length.dist, aes(x = log(length), y = as.factor(Year))) +
+  geom_density_ridges(alpha = 0.7, scale = 1.2) +
+  labs(
+    #title = "Distribution of Lengths by Year",
+    x = "log(Length)",
+    y = "Year"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
 
-library(ggplot2)
-library(ggridges)
-library(dplyr)
+p1 | p2 
 
-# Calculate mean log(length) for each year
-mean_lengths <- length.dist %>%
-  group_by(Year) %>%
-  summarise(mean_log_length = mean(log(length), na.rm = TRUE))
-
-library(ggplot2)
-library(ggridges)
-library(dplyr)
+ggsave("Figures/length_distributions.png", 
+       dpi=300, height=10, width=7, units='in')
 
 # Calculate mean log(length) for each year
 mean_lengths <- length.dist %>%
