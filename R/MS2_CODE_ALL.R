@@ -46,8 +46,8 @@ New.Data$SurfaceDO_sat <- DO.unit.convert(New.Data$SurfaceDO, DO.units.in = "mg/
 bayregions <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Map Stations/Bay_Regions.csv")
 
 # new fish info with everything 
-fishinfo.30 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v2.csv")
-fishinfo.16 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info v2.csv")
+fishinfo.30 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/30-foot fish info v3.csv")
+fishinfo.16 <- readr::read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/16-foot fish info v3.csv")
 
 # Trends -----------
 ## 30-foot survey -------------
@@ -581,17 +581,23 @@ small.div.fish <- ggplot(fish.small.div.TS, aes(x=Date, y = small.shann)) +
   geom_line(color = "#56B4E9", alpha = 0.7) +
   geom_smooth(method = "loess", se = T, size = 1, col = "#56B4E9") + 
   geom_hline(yintercept = mean(fish.small.div.TS$small.shann, na.rm=T), linetype = 'dashed') +
-  labs(x="Year",y="Species Diversity") +
+  labs(x="Year",y="Species Diversity", tag = "d)") +
   theme_light() 
 
 small.rich / small.div
 small.rich.fish / small.div.fish
 
+#fish.div <- fish.div + labs(tag="c)")
+div <- div + labs(tag="c)")
+small.div <- small.div + labs(tag="d)")
+
 # FIGURE 1 - richness and diversity trends -----------------------
-(fish.rich / fish.div) | (small.rich.fish / small.div.fish)
+(rich / div) | (small.rich / small.div)
 
 ggsave("Figures/FIGURE_1.png", 
        dpi=300, height=7, width=10, units='in')
+
+(fish.rich / fish.div) | (small.rich.fish / small.div.fish)
 
 ggsave("Figures/FIGURE_1b.png", 
        dpi=300, height=7, width=10, units='in')
@@ -696,7 +702,10 @@ p1 <- bayregions2 %>%
   theme_light() +
   scale_color_manual(values=  c("#009E73","#F0E442","#56B4E9"),
                      name = "",
-                     labels = c("Lower Bay", "Mid Bay", "Upper Bay")) 
+                     labels = c("Lower Bay", "Mid Bay", "Upper Bay")) +
+#annotate("text", x = min(bayregions2$Date), y = 10, label = "*", size = 10, hjust = 1, color = "#56B4E9") +
+  annotate("text", min(bayregions2$Date), y = 18, label = "*", size = 10, hjust = 1, color = "#009E73") 
+  #annotate("text", x = 1979, y = 95, label = "*", size = 10, hjust = 1, color = "#E69F00" )
 
 # plot the diversity bayregions 
 p2 <- bayregions2 %>%
@@ -711,12 +720,17 @@ p2 <- bayregions2 %>%
                      name = "",
                      labels = c("Lower Bay", "Mid Bay", "Upper Bay")) 
 
+#+
+#annotate("text", x = 1979, y = 110, label = "*", size = 10, hjust = 1, color = "#56B4E9")+
+#  annotate("text", x = 1979, y = 102, label = "*", size = 10, hjust = 1, color = "#009E73") +
+#  annotate("text", x = 1979, y = 95, label = "*", size = 10, hjust = 1, color = "#E69F00" )
+
 p1 / p2
 
 ### model regional trends through time ---------
 # swap out 'lowerbay.richness' and 'lowerbay.shann' to look at richness and diversity
 regional.glm <- bayregions2 %>%
-  filter(metric == "lowerbay.shann") %>%
+  filter(metric == "upperbay.rich") %>%
   mutate(month = month(Date)) %>%
   mutate(year = year(Date)) %>%
   select(-c(metric,type))
@@ -744,7 +758,6 @@ predicted_temp_start <- intercept + coef_year * start_year
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
 percent_increase_overall # 11.73% increase overall 
-
 
 ## 16-foot Regional Richness ------------
 small.regional.rich <- smalltrawl %>%
@@ -837,42 +850,81 @@ sm.lower.div <- as.data.frame(sm.lower.div) %>%
   rownames_to_column(var = "Date")
 
 # richness plot 
-sm.rich.region.plot <- sm.upper.rich %>%
+sm.rich.region.plot.df <- sm.upper.rich %>%
   left_join(sm.mid.rich, by = "Date") %>%
   left_join(sm.lower.rich, by = "Date") %>%
   mutate(Date = as.Date(Date)) %>%
   complete(Date = seq.Date(min(Date), max(Date), by="month")) %>%
   rename("Upper Bay" = sm.upper.rich, "Mid Bay" = sm.mid.rich, "Lower Bay" = sm.lower.rich) %>%
-  pivot_longer(cols = 2:4, names_to = "Region", values_to = "Richness") %>%
-  ggplot(aes(x=Date,y=Richness, color = Region)) +
+  pivot_longer(cols = 2:4, names_to = "Region", values_to = "Richness")
+
+sm.rich.region.plot <- ggplot(sm.rich.region.plot.df, aes(x=Date,y=Richness, color = Region)) +
   geom_line(alpha=0.5) +
   geom_smooth(method = "lm") +
   labs(x="Year",y="Species Richness", tag = "b)") +
   theme_light() +
   scale_color_manual(values=  c("#F0E442","#56B4E9","#E69F00"),
                      name = "",
-                     labels = c("Mid Bay", "Upper Bay", "River")) 
+                     labels = c("Mid Bay", "Upper Bay", "River"))  +
+  annotate("text", x = min(sm.rich.region.plot.df$Date), y = 125, label = "*", size = 10, hjust = 1, color = "#56B4E9") +
+  annotate("text", min(sm.rich.region.plot.df$Date), y = 110, label = "*", size = 10, hjust = 1, color = "#F0E442")  +
+  annotate("text", min(sm.rich.region.plot.df$Date), y = 60, label = "*", size = 10, hjust = 1, color = "#E69F00") 
 
 # diversity 
-sm.div.region.plot <- sm.upper.div %>%
+sm.div.region.plot.df <- sm.upper.div %>%
   left_join(sm.mid.div, by = "Date") %>%
   left_join(sm.lower.div, by = "Date") %>%
   mutate(Date = as.Date(Date)) %>%
   complete(Date = seq.Date(min(Date), max(Date), by="month")) %>%
   rename("Upper Bay" = sm.upper.div, "Mid Bay" = sm.mid.div, "Lower Bay" = sm.lower.div) %>%
-  pivot_longer(cols = 2:4, names_to = "Region", values_to = "Diversity") %>%
-  ggplot(aes(x=Date,y=Diversity, color = Region)) +
+  pivot_longer(cols = 2:4, names_to = "Region", values_to = "Diversity")
+
+sm.div.region.plot <- ggplot(sm.div.region.plot.df, aes(x=Date,y=Diversity, color = Region)) +
     geom_line(alpha=0.5) +
     geom_smooth(method = "lm") +
     labs(x="Year",y="Species Diversity") +
     theme_light() +
   scale_color_manual(values=  c("#F0E442","#56B4E9","#E69F00"),
                      name = "",
-                     labels = c("Mid Bay", "Upper Bay", "River")) 
+                     labels = c("Mid Bay", "Upper Bay", "River"))  +
+  annotate("text", x = min(sm.div.region.plot.df$Date), y = 1.3, label = "*", size = 10, hjust = 1, color = "#56B4E9") +
+  annotate("text", min(sm.div.region.plot.df$Date), y = 1.15, label = "*", size = 10, hjust = 1, color = "#F0E442") 
 
 sm.rich.region.plot / sm.div.region.plot
 
+### model regional trends through time ---------
+regional.glm <- sm.upper.rich %>%
+  mutate(month = month(Date)) %>%
+  mutate(year = year(Date)) 
+
+model <- glm(sm.upper.rich ~ year + month, data = regional.glm)
+summary(model)
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["year"] # 0.1881718 -- means increased XX per year on average 
+
+# Calculate the total number of years
+n_years <- max(regional.glm$year) - min(regional.glm$year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(regional.glm$year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 11.73% increase overall 
+
 # FIGURE 4 - regional trends  -----
+p2 <- p2 + labs(tag = "c)")
+sm.div.region.plot <- sm.div.region.plot + labs(tag = "d)")
+
 (p1 / p2) | (sm.rich.region.plot / sm.div.region.plot)
 
 ggsave("Figures/FIGURE_4.png", 
@@ -949,7 +1001,9 @@ ggplot(aes(x=Year,y=bottom.temp, color = season)) +
   geom_smooth(method="lm") +
   labs(x="Year",y="Bottom Temperature (C)", tag = "a)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer")) +
+  annotate("text", x = 1966, y = 22, label = "*", size = 10, hjust = 1, color = "#009E73") #+
+  #annotate("text", x = 1966, y = 17, label = "*", size = 10, hjust = 1, color = "#E69F00" )
 
 p2 <- seasonal %>%
   filter(season %in% c("Spring","Summer","Fall")) %>%
@@ -958,7 +1012,9 @@ p2 <- seasonal %>%
   geom_smooth(method="lm") +
   labs(x="Year",y="Surface Temperature (C)", tag = "b)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))+
+  annotate("text", x = 1979, y = 23, label = "*", size = 10, hjust = 1, color = "#009E73") +
+  annotate("text", x = 1979, y = 16, label = "*", size = 10, hjust = 1, color = "#E69F00" )
 
 p3 <- seasonal %>%
   filter(season %in% c("Spring","Summer","Fall")) %>%
@@ -967,7 +1023,8 @@ p3 <- seasonal %>%
   geom_smooth(method="lm") +
   labs(x="Year",y="Bottom Dissolved Oxygen", tag = "c)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "", labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "", labels = c("Fall", "Spring", "Summer")) +
+  annotate("text", x = 1969, y = 101, label = "*", size = 10, hjust = 1, color = "#56B4E9")
 
 p4 <- seasonal %>%
   filter(season %in% c("Spring","Summer","Fall")) %>%
@@ -976,16 +1033,20 @@ p4 <- seasonal %>%
   geom_smooth(method="lm") +
   labs(x="Year",y="Surface Dissolved Oxygen", tag="d)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))+
+  annotate("text", x = 1979, y = 110, label = "*", size = 10, hjust = 1, color = "#56B4E9")+
+  annotate("text", x = 1979, y = 102, label = "*", size = 10, hjust = 1, color = "#009E73") +
+  annotate("text", x = 1979, y = 95, label = "*", size = 10, hjust = 1, color = "#E69F00" )
+
 
 # FIGURE 2 - env. trends ----------
 
-(p1 / p2) | (p3 / p4)
+(p1 / p3) | (p2 / p4)
 
 ggsave("Figures/FIGURE_2.png", 
-       dpi=300, height=7, width=10, units='in')
+       dpi=300, height=7, width=12, units='in')
 
-### Calculate rate -----------------------
+### Env Rates -----------------------
 # using regression line 
 fall <- seasonal %>%
   filter(season == "Fall")
@@ -997,7 +1058,6 @@ spring <- seasonal %>%
   filter(season == "Spring")
 
 # run regressions 
-
 #summer
 ssum <- lm(surface.temp ~ Year, data = summer)
 summary(ssum) # yes
@@ -1010,7 +1070,7 @@ bfall <- lm(bottom.temp ~ Year, data = fall)
 summary(bfall) #no 
 
 sfall <- lm(surface.temp ~ Year, data = fall)
-summary(sfall) #yes #no 
+summary(sfall) #yes  
 
 #spring
 bspring <- lm(bottom.temp ~ Year, data = spring)
@@ -1019,15 +1079,35 @@ summary(bspring) #no
 sspring <- lm(surface.temp ~ Year, data = spring)
 summary(sspring) #no
 
+# dissolved oxygen 
+#summer
+ssum <- lm(surface.DO ~ Year, data = summer)
+summary(ssum) # yes
+
+bsum <- lm(bottom.DO ~ Year, data = summer)
+summary(bsum) #no 
+
+#fall 
+bfall <- lm(bottom.DO ~ Year, data = fall)
+summary(bfall) #no 
+
+sfall <- lm(surface.DO ~ Year, data = fall)
+summary(sfall) #yes  
+
+#spring
+bspring <- lm(bottom.DO ~ Year, data = spring)
+summary(bspring) #yes 
+
+sspring <- lm(surface.DO ~ Year, data = spring)
+summary(sspring) #yes
+
 # slopes 
-ssum$coefficients #0.0427988
-bsum$coefficients #0.02935573
+ssum$coefficients #-0.219925
 
-sspring$coefficients #-0.009953095 
-bspring$coefficients #0.01875844 
+sspring$coefficients #-0.3170389
+bspring$coefficients #-0.1753141 
 
-sfall$coefficients #0.06051394
-bfall$coefficients #0.01625886 
+sfall$coefficients #-0.1795278
 
 #slope = rise/run = temp / year 
 2019-1980
@@ -1081,8 +1161,13 @@ big.richness.seasonal <- rich.seasonal %>%
   geom_point(alpha=0.5)+
   labs(x="",y="Species Richness", tag = "a)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))+
+  annotate("text", x = 1990, y = 29, label = "*", size = 12, hjust = 1, color = "#56B4E9") +
+  annotate("text", x = 1990, y = 32, label = "*", size = 12, hjust = 1, color = "#009E73") +
+  annotate("text", x = 1990, y = 34, label = "*", size = 12, hjust = 1, color = "#E69F00" )
 
+
+#### model seasonal trends---------
 # using regression line 
 fall <- rich.seasonal %>%
   filter(season == "Fall")
@@ -1094,7 +1179,6 @@ spring <- rich.seasonal %>%
   filter(season == "Spring")
 
 # run regressions 
-
 #summer
 summer.rich <- lm(richness ~ Year, data = summer)
 summary(summer.rich) 
@@ -1107,11 +1191,26 @@ summary(fall.rich)
 spring.rich <- lm(richness ~ Year, data = spring)
 summary(spring.rich) 
 
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(spring.rich)["Year"] # 0.1881718 -- means increased XX per year on average 
 
-# slopes 
-summer.rich$coefficients #0.6137931
-fall.rich$coefficients #0.8160178
-spring.rich$coefficients #0.4669633
+# Calculate the total number of years
+n_years <- max(spring$Year) - min(spring$Year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(spring.rich)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(spring$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 53.2% increase overall 
 
 ### 16-foot survey -----------
 small.rich.seasonal <- smalltrawl %>%
@@ -1131,6 +1230,7 @@ small.rich.seasonal <- smalltrawl %>%
   tally() %>%
   rename(richness = n)
 
+# PLOT ****
 small.richness.seasonal <- small.rich.seasonal %>%
   filter(season %in% c("Spring","Summer","Fall")) %>%
   ggplot(aes(x=Year,y=richness, color = season)) +
@@ -1139,14 +1239,56 @@ small.richness.seasonal <- small.rich.seasonal %>%
   geom_smooth(method="lm") +
   labs(x="",y="Species Richness", tag = "b)") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))+
+  annotate("text", x = 1991, y = 43, label = "*", size = 12, hjust = 1, color = "#56B4E9")
+
+
+#### model seasonal richness ----------
+# using regression line 
+fall <- small.rich.seasonal %>%
+  filter(season == "Fall")
+
+summer <- small.rich.seasonal %>%
+  filter(season == "Summer")
+
+spring <- small.rich.seasonal %>%
+  filter(season == "Spring")
+
+# run regressions 
+#spring significant 
+spring.rich <- lm(richness ~ Year, data = spring)
+summary(spring.rich) 
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(spring.rich)["Year"] # 0.1881718 -- means increased XX per year on average 
+
+# Calculate the total number of years
+n_years <- max(spring) - min(spring$Year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(spring.rich)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(spring$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 53.2% increase overall 
+
+#spring
+spring.rich <- lm(richness ~ Year, data = spring)
+summary(spring.rich) 
 
 ### FIGURE - seasonal richness -----------
 big.richness.seasonal / small.richness.seasonal
 
 ## Seasonal Diversity ------------
 ### 30-foot seasonal diversity ------------
-
 # Summer
 big.summer.div <- New.Data %>%
   filter(Year %in% 1990:2019) %>%
@@ -1244,8 +1386,52 @@ big.seasonal.div %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
-### 16-foot seasonal diversity ------------
+#### model seasonal div ----------
+# using regression line 
+fall <- big.seasonal.div %>%
+  filter(Season == "Fall")
 
+summer <- big.seasonal.div %>%
+  filter(Season == "Summer")
+
+spring <- big.seasonal.div %>%
+  filter(Season == "Spring")
+
+# run regressions 
+#summer
+summer.div <- lm(Diversity ~ year, data = summer)
+summary(summer.div) 
+
+#fall 
+fall.div <- lm(Diversity ~ year, data = fall)
+summary(fall.div) 
+
+#spring
+spring.div <- lm(Diversity ~ year, data = spring)
+summary(spring.div) 
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(fall.div)["year"] # 0.1881718 -- means increased XX per year on average 
+
+# Calculate the total number of years
+n_years <- max(fall$year) - min(fall$year)
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(fall.div)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year 
+start_year <- min(fall$year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall # 53.2% increase overall 
+
+### 16-foot seasonal diversity ------------
 # Summer
 small.summer.div <- smalltrawl %>%
   filter(Year4 %in% 1990:2019) %>%
@@ -1343,6 +1529,30 @@ small.seasonal.div %>%
   theme_light() +
   scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
 
+#### model seasonal div -------------
+# using regression line 
+fall <- small.seasonal.div %>%
+  filter(Season == "Fall")
+
+summer <- small.seasonal.div %>%
+  filter(Season == "Summer")
+
+spring <- small.seasonal.div %>%
+  filter(Season == "Spring")
+
+# run regressions 
+#summer
+summer.div <- lm(Diversity ~ year, data = summer)
+summary(summer.div) 
+
+#fall 
+fall.div <- lm(Diversity ~ year, data = fall)
+summary(fall.div) 
+
+#spring
+spring.div <- lm(Diversity ~ year, data = spring)
+summary(spring.div) 
+
 ## FIGURE - seasonal diversity 
 big.div.s <- big.seasonal.div %>%
   ggplot(aes(x=year,y=Diversity, color = Season)) +
@@ -1351,7 +1561,8 @@ big.div.s <- big.seasonal.div %>%
   geom_smooth(method="lm") +
   labs(x="Year",y="Species Diversity", tag = "") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer")) +
+  annotate("text", x = 1990, y = 1.75, label = "*", size = 12, hjust = 1, color = "#E69F00" )
 
 small.div.s <- small.seasonal.div %>%
   ggplot(aes(x=year,y=Diversity, color = Season)) +
@@ -1360,9 +1571,12 @@ small.div.s <- small.seasonal.div %>%
   geom_smooth(method="lm") +
   labs(x="Year",y="Species Diversity", tag = "") +
   theme_light() +
-  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer"))
+  scale_color_manual(values=colorblind_palette, name = "",labels = c("Fall", "Spring", "Summer")) 
 
 # FIGURE 3 - seasonal - rich & div -------------
+big.div.s <- big.div.s + labs(tag = "c)")
+small.div.s <- small.div.s + labs(tag = "d)")
+
 (big.richness.seasonal / big.div.s) | (small.richness.seasonal/ small.div.s)
 
 ggsave("Figures/FIGURE_3.png", 
@@ -1558,7 +1772,12 @@ small.slope <- ggplot(slope) +
 small.SA / small.slope
 
 # FIGURE 5 - sp. accumulation ----------------------
-(big.SA.plot / big.slope.plot) | (small.SA / small.slope)
+big.SA.plot <- big.SA.plot + labs(x="")
+big.slope.plot <- big.slope.plot + labs(tag = "b)", x = "")
+small.SA <- small.SA + labs(tag = "c)", y="Number of Species", x="Number of Tows") 
+small.slope <- small.slope + labs(tag ="d)")
+
+(big.SA.plot / small.SA) | (big.slope.plot/ small.slope)
 
 ggsave("Figures/FIGURE_5.png", 
        dpi=300, height=7, width=10, units='in')
@@ -1628,8 +1847,8 @@ big.oc <- ggplot(sp.all, aes(fill=variable, y=value, x=reorder(CommonName,diff))
 
 ## 16-foot survey -----------------------
 smalltrawl <- smalltrawl %>%
-  rename(Year = Year4,
-         CommonName = Common.name) %>%
+  #rename(Year = Year4,
+  #       CommonName = Common.name) %>%
   filter(! is.na(CommonName)) %>%
   left_join(fishinfo.16, by = "CommonName")
 
@@ -1691,6 +1910,9 @@ sm.oc <- ggplot(small.all, aes(fill=variable, y=value, x=reorder(CommonName,diff
                     values = colorblind_palette)
 
 # FIGURE 6 - occurences ------
+sm.oc <- sm.oc + labs(y="Proportion of Months", x="")
+big.oc <- big.oc + theme(legend.position = "none")
+
 big.oc | sm.oc
 
 ggsave("Figures/FIGURE_6.png", 
@@ -1709,9 +1931,9 @@ fish <- New.Data %>%
 
 # small trawl 
 small.fish <- smalltrawl %>% 
-  group_by(Trawl, Year4, Month, Common.name) %>%
+  group_by(Trawl, Year, Month, CommonName) %>%
   summarise(number = sum(CPUE, na.rm=T)) %>%
-  left_join(fishinfo.16, by = c("Common.name" = "CommonName")) %>%
+  left_join(fishinfo.16, by = "CommonName") %>%
   filter(Group == "Fin Fish" | Group == "Cartilaginous Fish")
 
 ### 30-foot Environment -------------------------------------------------------------
@@ -1764,41 +1986,41 @@ env <- fish %>%
   ungroup()
 
 model <- glm(`reef-associated` ~ Year, data = env)
-summary(model)
+summary(model) 
 
 ### 16-foot Environment -------------------------------------------------------------
 try <- small.fish %>%
-  group_by(Year4, Common.name, Environment) %>%
+  group_by(Year, CommonName, Environment) %>%
   summarise(number = sum(number, na.rm=T)) %>%
   ungroup() %>%
   filter(!is.na(Environment)) %>%
-  filter(Environment %in% c("demersal", "pelagic")) %>%
-  group_by(Year4, Environment) %>%
+  filter(Environment %in% c("demersal", "pelagic", "reef-associated","benthopelagic")) %>%
+  group_by(Year, Environment) %>%
   summarise(number = sum(number,na.rm=T)) %>%
   pivot_wider(values_from = number, names_from = Environment) %>%
   mutate(across(everything(), ~ replace_na(., 0))) %>%
   rowwise() %>%
-  mutate(across(demersal:pelagic, ~ . / sum(c_across(demersal:pelagic), na.rm = TRUE))) %>%
+  mutate(across(benthopelagic:`reef-associated`, ~ . / sum(c_across(benthopelagic:`reef-associated`), na.rm = TRUE))) %>%
   ungroup() %>%
-  pivot_longer(cols = 2:3, values_to = "number", names_to = "Environment")
+  pivot_longer(cols = 2:5, values_to = "number", names_to = "Environment")
 
 # stacked bar 
-p1 <- ggplot(data = try, aes(x = Year4, y = number, fill = factor(Environment, levels=c("demersal", "pelagic")))) + 
+p1 <- ggplot(data = try, aes(x = Year, y = number, fill = factor(Environment, levels=c("benthopelagic","demersal", "pelagic", "reef-associated")))) + 
   geom_bar(stat = 'identity') + 
   ylab("Relative CPUE") +
   guides(fill=guide_legend(title="Environment")) +
-  scale_fill_manual(values=colorblind_palette,name = "Environment", labels = c("Demersal", "Pelagic")) +
+  scale_fill_manual(values=colorblind_palette,name = "Environment", labels = c("Benthopelagic","Demersal", "Pelagic", "Reef-associated")) +
   theme_light() +
   theme(text = element_text(size=10))
 
 p2 <- try %>%
-  ggplot(aes(x=Year4, y = number, color = factor(Environment, levels=c("demersal", "pelagic")))) +
+  ggplot(aes(x=Year, y = number, color = factor(Environment, levels=c("benthopelagic","demersal", "pelagic", "reef-associated")))) +
   geom_line() +
   geom_smooth(method = "lm") +
   xlab("Year") +
   ylab("Relative CPUE") +
   facet_wrap(vars(Environment),nrow=2, scales="free_y") +
-  scale_color_manual(values = colorblind_palette, name = "Environment", labels = c("Demersal", "Pelagic")) +
+  scale_color_manual(values = colorblind_palette, name = "Environment", labels = c("Benthopelagic","Demersal", "Pelagic", "Reef-associated")) +
   theme_light() +
   theme(text = element_text(size=10), strip.background = element_blank())
 
@@ -1833,7 +2055,7 @@ ggplot(aes(x = Year, y = number, fill = factor(feeding.habit, levels=c("hunting 
 
 f2 <- fish2 %>%
   filter(feeding.habit != "grazing on aquatic plants") %>%
-ggplot(aes(x=Year, y = number, color = feeding.habit)) +
+ggplot(aes(x=Year, y = number, color = factor(feeding.habit, levels=c("hunting macrofauna (predator)", "filtering plankton", "selective plankton feeding", "variable")))) +
   geom_line() +
   geom_smooth(method = "lm") +
   xlab("Year") +
@@ -1845,50 +2067,106 @@ ggplot(aes(x=Year, y = number, color = feeding.habit)) +
 
 f1 | f2
 
+### Model feeding habit -------
+fh <- fish %>%
+  group_by(Year, CommonName, Feeding.Habit2) %>%
+  summarise(number = sum(number, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(Feeding.Habit2 = na_if(Feeding.Habit2, "")) %>%
+  filter(!is.na(Feeding.Habit2)) %>%
+  group_by(Year, Feeding.Habit2) %>%
+  summarise(number = sum(number,na.rm=T)) %>%
+  pivot_wider(values_from = number, names_from = Feeding.Habit2) %>%
+  mutate(across(everything(), ~ replace_na(., 0))) %>%
+  rowwise() %>%
+  mutate(across(`grazing on aquatic plants`:`filtering plankton`, ~ . / sum(c_across(`grazing on aquatic plants`:`filtering plankton`))))  %>%
+  ungroup() 
+
+model <- glm(`filtering plankton` ~ Year, data = fh)
+summary(model) # signif. 
+
+# Get the coefficient for the year (the long-term trend)
+coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
+
+# Calculate the total number of years
+n_years <- max(fh$Year) - min(fh$Year)
+
+# Get the coefficient of year
+coef_year <- coef(model)["Year"]
+
+# Calculate the total temperature change over the time series
+total_change <- coef_year * n_years
+
+# Get the intercept (for predicted starting temperature)
+intercept <- coef(model)["(Intercept)"]
+
+# Estimate the predicted temperature in the starting year (e.g., 1990)
+start_year <- min(fh$Year)
+predicted_temp_start <- intercept + coef_year * start_year
+
+# Calculate the overall percent increase
+percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
+
+percent_increase_overall 
+
+
 ### 16-foot Feeding Habit ----------------------------------------------------------
 fish2 <- small.fish %>%
-  group_by(Year4, Common.name, Feeding.Habit) %>%
+  group_by(Year, CommonName, Feeding.Habit) %>%
   summarise(number = sum(number, na.rm=T)) %>%
   ungroup() %>%
   mutate(Feeding.Habit = na_if(Feeding.Habit, "")) %>%
-  filter(Feeding.Habit %in% c("predator", "variable")) %>%
+  filter(Feeding.Habit %in% c("predator", "variable", "planktivore")) %>%
   filter(!is.na(Feeding.Habit)) %>%
-  group_by(Year4, Feeding.Habit) %>%
+  group_by(Year, Feeding.Habit) %>%
   summarise(number = sum(number,na.rm=T)) %>%
   pivot_wider(values_from = number, names_from = Feeding.Habit) %>%
   mutate(across(everything(), ~ replace_na(., 0))) %>%
   rowwise() %>%
-  mutate(across(predator:variable, ~ . / sum(c_across(predator:variable))))  %>%
+  mutate(across(planktivore:variable, ~ . / sum(c_across(planktivore:variable))))  %>%
   ungroup() %>%
-  pivot_longer(cols = predator:variable, values_to = "number", names_to = "feeding.habit")
+  pivot_longer(cols = planktivore:variable, values_to = "number", names_to = "feeding.habit")
 
 # stacked bar 
 f1 <- fish2 %>%
-  ggplot(aes(x = Year4, y = number, fill = factor(feeding.habit, levels=c("predator", "variable")))) + 
+  ggplot(aes(x = Year, y = number, fill = factor(feeding.habit, levels=c("predator", "variable","planktivore")))) + 
   geom_bar(stat = 'identity') + 
   ylab("Relative CPUE") +
-  scale_fill_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable")) +
+  scale_fill_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable","Planktivore")) +
   theme_light() +
   theme(text = element_text(size=10))
 
 f2 <- fish2 %>%
-  ggplot(aes(x=Year4, y = number, color = feeding.habit)) +
+  ggplot(aes(x=Year, y = number, color = factor(feeding.habit, levels=c("predator", "variable","planktivore")))) +
   geom_line() +
   geom_smooth(method = "lm") +
   xlab("Year") +
   ylab("Relative CPUE") +
   facet_wrap(vars(feeding.habit),nrow=2, scales="free_y") +
-  scale_color_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable")) +
+  scale_color_manual(values = colorblind_palette,name = "Feeding Habit", labels = c("Predator", "Variable", "Planktivore")) +
   theme_light() +
   theme(text = element_text(size=10), strip.background = element_blank())
 
 f1 | f2
 
 # FIGURE 8 & 8b - env. and feeding habits -----------
+p1 <- p1 + labs(tag = "a)",x="")
+p2 <- p2 + labs(tag="b)",y="",x="")
+f1 <- f1 + labs(tag = "c)",x="Year")
+f2 <- f2 + labs(tag="d)",y="")
+
 (p1 | p2) / (f1 | f2)
 
 ggsave("Figures/FIGURE_8.png", 
        dpi=300, height=7, width=12, units='in')
+
+p1 <- p1 + labs(tag = "a)",x="")
+p2 <- p2 + labs(tag="b)",y="",x="")
+f1 <- f1 + labs(tag = "c)",x="Year")
+f2 <- f2 + labs(tag="d)",y="")
+
+(p1 | p2) / (f1 | f2)
+
 ggsave("Figures/FIGURE_8b.png", 
        dpi=300, height=7, width=12, units='in')
 
@@ -1907,11 +2185,18 @@ model <- glm(TL ~ Year, data = TL)
 summary(model) # not signif. 
 
 ### 30-foot Latitude -----------------------------------------
-#range <- read.csv("/Users/haleyoleynik/Documents/Thesis/Data/New_SpeciesRanges.csv")
-#range <- range[,-1]
+range <- read_csv("/Users/haleyoleynik/Documents/Thesis/Data/Fish Base/New_SpeciesRanges.csv")
+range <- range[,-1]
 
-# USE NEW Spreadsheets!!!!!!!!!!!!!!!1
-latitude <-  fish %>% 
+# USE NEW Spreadsheets!!!!!!!!!!!!!!!
+# big trawl 
+fish.range <- New.Data %>% 
+  filter(Group == "Fin Fish" | Group == "Cartilaginous Fish") %>%
+  group_by(Trawl, Year, Month, CommonName) %>%
+  summarise(number = sum(CPUE, na.rm=T)) %>%
+  left_join(range, by = "CommonName")
+
+latitude <-  fish.range %>% 
   group_by(Year, CommonName) %>% 
   summarise(upperlat= mean(upperlat, na.rm=T),
             lowerlat= mean(lowerlat, na.rm=T))  %>%
@@ -1933,7 +2218,7 @@ model <- glm(mean.midlat ~ Year, data = latitude)
 summary(model) # signif
 
 # Get the coefficient for the year (the long-term trend)
-coef_year <- coef(model)["Year"] # -0.06566188 - means decreased .34 per year on average 
+coef_year <- coef(model)["Year"] # -0.03152225 - means decreased .34 per year on average 
 
 # Calculate the total number of years
 n_years <- max(latitude$Year) - min(latitude$Year)
@@ -1954,14 +2239,14 @@ predicted_temp_start <- intercept + coef_year * start_year
 # Calculate the overall percent increase
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
-percent_increase_overall # -12.26295% decrease overall 
+percent_increase_overall # -4.96697% decrease overall 
 
 # lowerlat
 model <- glm(mean.lowerlat ~ Year, data = latitude)
 summary(model) # signif
 
 # Get the coefficient for the year (the long-term trend)
-coef_year <- coef(model)["Year"] # -0.1305788  -- means increased .34 per year on average 
+coef_year <- coef(model)["Year"] # -0.05892115   -- means increased .34 per year on average 
 
 # Calculate the total number of years
 n_years <- max(latitude$Year) - min(latitude$Year)
@@ -1982,7 +2267,7 @@ predicted_temp_start <- intercept + coef_year * start_year
 # Calculate the overall percent increase
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
-percent_increase_overall #-88.1169 % decrease overall 
+percent_increase_overall # -16.92563 % decrease overall 
 
 ### 30-foot Preferred Temperature  ----------------------------
 # try confidence intervals -- calculate SD (or SE)
@@ -2033,51 +2318,7 @@ percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_t
 
 percent_increase_overall # 10.68071% increase overall 
 
-temp <- fish %>% 
-  group_by(Year, CommonName) %>% 
-  summarise(temp = mean(Temp.mean, na.rm=T),
-            maxtemp = mean(Temp.max, na.rm=T),
-            mintemp = mean(Temp.min, na.rm=T)) %>%
-  ungroup() %>%
-  group_by(Year) %>% 
-  filter(!is.nan(temp)) %>%
-  summarise(mean.temp = mean(temp, na.rm=T),
-            #sd.temp = sd(temp, na.rm=T),
-            se.temp = sd(temp, na.rm=T) / sqrt(n()),
-            mean.maxtemp = mean(maxtemp, na.rm=T),
-            #sd.maxtemp = sd(maxtemp, na.rm=T),
-            se.maxtemp = sd(maxtemp, na.rm=T) / sqrt(n()),
-            mean.mintemp = mean(mintemp, na.rm=T),
-            #sd.mintemp = sd(mintemp, na.rm=T),
-            se.mintemp = sd(mintemp, na.rm=T) / sqrt(n()), # Calculate standard deviation
-            .groups = "drop")
 
-model <- glm(mean.mintemp ~ Year, data = temp)
-summary(model) # signif
-
-# Get the coefficient for the year (the long-term trend)
-coef_year <- coef(model)["Year"] # 0.3439364 -- means increased .34 per year on average 
-
-# Calculate the total number of years
-n_years <- max(temp$Year) - min(temp$Year)
-
-# Get the coefficient of year
-coef_year <- coef(model)["Year"]
-
-# Calculate the total temperature change over the time series
-total_change <- coef_year * n_years
-
-# Get the intercept (for predicted starting temperature)
-intercept <- coef(model)["(Intercept)"]
-
-# Estimate the predicted temperature in the starting year (e.g., 1990)
-start_year <- min(temp$Year)
-predicted_temp_start <- intercept + coef_year * start_year
-
-# Calculate the overall percent increase
-percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
-
-percent_increase_overall 
 
 # mean temp 10.68071% increase overall 
 # maxtemp 5.697029% increase overall 
@@ -2134,9 +2375,94 @@ predicted_temp_start <- intercept + coef_year * start_year
 # Calculate the overall percent change
 percent_increase_overall <- ((predicted_temp_start + total_change) / predicted_temp_start - 1) * 100
 
-percent_increase_overall 
+percent_increase_overall # -19.20922% decrease  overall 
 
-# -19.20922% decrease  overall 
+### Population rate parameters ---------------------
+longevity <-  fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(longevity= mean(longevity, na.rm=T))  %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  summarise(mean.longevity = mean(longevity,na.rm=T),
+            se.longevity = sd(longevity, na.rm=T) / sqrt(n()))
+
+generation <-  fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(generation_time= mean(generation_time, na.rm=T))  %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  summarise(mean.generation_time = mean(generation_time,na.rm=T),
+            se.generation_time = sd(generation_time, na.rm=T) / sqrt(n()))
+
+maturity <-  fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(maturity= mean(maturity, na.rm=T))  %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  summarise(mean.maturity = mean(maturity,na.rm=T),
+            se.maturity = sd(maturity, na.rm=T) / sqrt(n()))
+
+K <-  fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(K= mean(K, na.rm=T))  %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  summarise(mean.K = mean(K,na.rm=T),
+            se.K = sd(K, na.rm=T) / sqrt(n()))
+
+r <-  fish %>% 
+  group_by(Year, CommonName) %>% 
+  summarise(r= mean(r, na.rm=T))  %>%
+  ungroup() %>%
+  group_by(Year) %>% 
+  summarise(mean.r = mean(r,na.rm=T),
+            se.r = sd(r, na.rm=T) / sqrt(n()))
+
+ggplot(r, aes(x=Year,y=mean.r)) +
+  geom_line() +
+  geom_smooth(method = "lm")
+
+pop_params <- longevity %>%
+  left_join(generation, by = "Year") %>%
+  left_join(maturity, by = "Year") %>%
+  left_join(K, by = "Year") %>%
+  left_join(r, by = "Year") %>%
+  pivot_longer(cols = 2:11, names_to = "Metric", values_to = "Value") %>%
+  mutate(Stat = case_when(
+    Metric %in% c("mean.longevity", "mean.generation_time","mean.maturity","mean.K","mean.r") ~ "Mean",
+    Metric %in% c("se.longevity", "se.generation_time","se.maturity","se.K","se.r") ~ "SE"
+  ),
+  Group = case_when(
+    Metric %in% c("mean.longevity", "se.longevity") ~ "Longevity",
+    Metric %in% c("mean.generation_time", 
+                  "se.generation_time") ~ "Generation",
+    Metric %in% c("mean.maturity",
+                  "se.maturity") ~ "Maturity",
+    Metric %in% c("mean.K", 
+                  "se.K") ~ "K",
+    Metric %in% c("mean.r", 
+                  "se.r") ~ "r",
+  )) %>%
+  mutate(Metric = sub("mean\\.|se\\.", "", Metric)) %>%
+  pivot_wider(names_from = "Stat", values_from = "Value")
+
+# plot 
+pop_params %>%
+  ggplot(aes(x = Year, y = Mean, color = Group)) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  geom_errorbar(aes(ymin = Mean - SE, ymax = Mean + SE), 
+                width = 0.2) +
+  facet_wrap(Group ~ ., scales = "free_y", nrow = 2) +
+  scale_color_manual(values = colorblind_palette) + 
+  theme_light() 
+
+# relative contribution? 
+
+### Model r  
+model <- glm(mean.r ~ Year, data = r)
+summary(model) # not signif 
 
 #### Length distribution ------------
 # Model distribution through time 
@@ -2213,7 +2539,7 @@ x %>%
 
 ### 16-foot Trophic Level -----------------------------
 small.TL <- small.fish %>% 
-  rename(Year = Year4, CommonName = Common.name) %>% 
+  #rename(Year = Year4, CommonName = Common.name) %>% 
   group_by(Year, CommonName) %>% 
   summarise(TL = mean(Trophic.Level, na.rm=T)) %>% 
   ungroup() %>%
@@ -2228,7 +2554,7 @@ summary(model) # not signif.
 
 ### 16-foot Latitude ----------------------------------------
 small.latitude <-  small.fish %>% 
-  rename(Year = Year4, CommonName = Common.name) %>% 
+  #rename(Year = Year4, CommonName = Common.name) %>% 
   group_by(Year, CommonName) %>% 
   summarise(upperlat= mean(upperlat, na.rm=T),
             lowerlat= mean(lowerlat, na.rm=T))  %>%
@@ -2276,7 +2602,7 @@ percent_increase_overall # -12.26295% decrease overall
 ### 16-foot Preferred Temperature  ----------------------------
 # weight by abundance? 
 small.temp <- small.fish %>% 
-  rename(Year = Year4, CommonName = Common.name) %>% 
+  #rename(Year = Year4, CommonName = Common.name) %>% 
   group_by(Year, CommonName) %>% 
   summarise(temp = mean(Temp.mean, na.rm=T),
             maxtemp = mean(Temp.max, na.rm=T),
@@ -2301,8 +2627,8 @@ summary(model)
 
 ## 16-foot Lengths ------------------
 smalltrawl.2 <- smalltrawl %>%
-  rename(Year = Year4,
-         CommonName = Common.name) %>%
+  #rename(Year = Year4,
+  #       CommonName = Common.name) %>%
   filter(! is.na(CommonName))
 
 # read length data 
@@ -2359,7 +2685,7 @@ all <- temp %>%
   pivot_wider(names_from = "Stat", values_from = "Value")
 
 # plot 
-all %>%
+a <- all %>%
   ggplot(aes(x = Year, y = Mean, color = Group)) +
   geom_line() +
   geom_point() +
@@ -2368,6 +2694,7 @@ all %>%
                 width = 0.2) +
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
+  labs(tag = "a)")+
   theme_light() 
 
 ggsave("Figures/FIGURE_7.png", 
@@ -2403,7 +2730,7 @@ small.all <- small.temp %>%
   pivot_wider(names_from = "Stat", values_from = "Value")
 
 # plot 
-small.all %>%
+b <- small.all %>%
   ggplot(aes(x = Year, y = Mean, color = Group)) +
   geom_line() +
   geom_point() +
@@ -2412,10 +2739,13 @@ small.all %>%
                 width = 0.2) +
   facet_wrap(Group ~ Metric, scales = "free_y", nrow = 2) +
   scale_color_manual(values = colorblind_palette) + 
+  labs(tag = "b)")+
   theme_light() 
 
-ggsave("Figures/FIGURE_7b.png", 
-       dpi=300, height=7, width=14, units='in')
+a / b
+
+ggsave("Figures/FIGURE_7.png", 
+       dpi=300, height=14, width=17, units='in')
 
 # GAM -------------------------
 # written data !! read this and jump to time series plots
@@ -2577,21 +2907,40 @@ temp %>%
   ggplot(aes(x=Month, y=richness)) +
   geom_line()
 
+temp %>%
+  ggplot(aes(x=Month, y=richness)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+
 ## TEMP sensitivities ---------------------- 
+require(mgcv)
 GAM.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
 summary(GAM.temp) # deviance explained = 46.1
 coef(GAM.temp)
 plot(GAM.temp)
+AIC(GAM.temp) # 1534.103
+
+# Plot the smooth effect of Month
+plot(GAM.temp, select = 1, shade = TRUE, main = "Effect of Month on Species Richness")
+
+
+GAM.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc"), family = poisson, data = temp)
+summary(GAM.temp) # deviance explained = 46.1
+coef(GAM.temp)
+plot(GAM.temp)
+AIC(GAM.temp) # 1534.103
 
 GAM.temp2 <- gam(richness ~ s(temp) + s(Year) + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
 summary(GAM.temp2) # 62.9
 coef(GAM.temp2)
 plot(GAM.temp2)
+AIC(GAM.temp2) #1487.825
 
 GAM.temp2 <- gam(richness ~ s(temp) + Year + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
 summary(GAM.temp2) # 52
 coef(GAM.temp2)
 plot(GAM.temp2)
+AIC(GAM.temp2) #1512.186
 
 GAM.temp2 <- gam(richness ~ temp + s(Year) + s(Month, bs = "cc", k = 10), family = poisson, data = temp)
 summary(GAM.temp2) # 57.5
@@ -2603,7 +2952,7 @@ plot(GAM.temp2)
 GAM1.temp <- gam(richness ~ temp + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
 summary(GAM1.temp) # deviance explained = 44.3
 coef(GAM1.temp)
-plot(GAM1.temp)
+AIC(GAM1.temp)
 
 GAM1.trips <- gam(richness ~ all.trips.extrapolated + Year + s(Month, bs = "cc", k = 10), family = poisson, data = new.data)
 summary(GAM1.trips) # deviance explained = 41.6 -- not significant! 
@@ -2769,9 +3118,17 @@ AIC(GAM1.2)
 # Species Turnover ----------------------
 # https://search.r-project.org/CRAN/refmans/codyn/html/turnover.html
 
+# cross correlation of species richness in the two surveys ------------------------
+fish.rich.TS
+fish.small.rich.TS
 
+all.richness <- fish.rich.TS %>%
+  full_join(fish.small.rich.TS, by = "Date") %>%
+  na.omit()
 
+ggplot(all.richness, aes(richness,small.richness)) +
+  geom_point()
 
-
+ccf(all.richness$richness, all.richness$small.richness,lag.max = (10*5))
 
 
